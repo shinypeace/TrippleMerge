@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Филворды</title>
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-main: 'Manrope', sans-serif;
+            --transition-speed: 0.3s;
+            --transition-fast: 0.15s;
+            --banner-height: 50px; /* Высота баннера VK */
+            /* Цвета тем */
+            --bg-light: #f5f6fa; --text-light: #4a4a4a; --card-light: #ffffff; --accent-light: #4870ff; --accent-hover-light: #3a59c9; --grid-border-light: #e1e4e8; --selected-light: #dbe4ff; --shadow-light: 0 8px 30px rgba(60, 70, 80, 0.12); --hint-color-light: var(--accent-light);
+            --bg-dark: #1d1d1d; --text-dark: #e1e1e1; --card-dark: #2a2a2a; --accent-dark: #5d8aff; --accent-hover-dark: #7d9fff; --grid-border-dark: #3a3a3a; --selected-dark: #313b52; --shadow-dark: 0 8px 30px rgba(0, 0, 0, 0.2); --hint-color-dark: var(--accent-dark);
+        }
+        html { height: 100%; }
+        body {
+            font-family: var(--font-main);
+            margin: 0; padding: 0; box-sizing: border-box;
+            background-color: var(--bg-color); color: var(--text-color);
+            transition: background-color var(--transition-speed), color var(--transition-speed);
+            overflow: hidden; user-select: none; -webkit-user-select: none;
+            touch-action: none; -webkit-tap-highlight-color: transparent;
+            height: 100%;
+            padding-bottom: var(--banner-height);
+        }
+        body[data-theme='light'] { --bg-color: var(--bg-light); --text-color: var(--text-light); --card-color: var(--card-light); --accent-color: var(--accent-light); --accent-hover-color: var(--accent-hover-light); --grid-border-color: var(--grid-border-light); --selected-color: var(--selected-light); --text-selected-color: #2c3e50; --box-shadow: var(--shadow-light); --hint-color: var(--hint-color-light); }
+        body[data-theme='dark'] { --bg-color: var(--bg-dark); --text-color: var(--text-dark); --card-color: var(--card-dark); --accent-color: var(--accent-dark); --accent-hover-color: var(--accent-hover-dark); --grid-border-color: var(--grid-border-dark); --selected-color: var(--selected-dark); --text-selected-color: #e1e1e1; --box-shadow: var(--shadow-dark); --hint-color: var(--hint-color-dark); }
+
+        .screen {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 1rem; box-sizing: border-box;
+            opacity: 0; transform: scale(0.98);
+            transition: opacity var(--transition-speed) ease, transform var(--transition-speed) ease;
+            pointer-events: none;
+        }
+        .screen.active { opacity: 1; transform: scale(1); pointer-events: auto; }
+        
+        /* ИСПРАВЛЕННЫЙ ЛЭЙАУТ ГЛАВНОГО МЕНЮ */
+        #main-menu {
+            justify-content: space-around; /* Распределяет пространство между элементами */
+        }
+        #main-menu .title {
+             font-size: clamp(3rem, 12vw, 4.5rem); font-weight: 800;
+             color: var(--accent-color); margin: 0; /* Убираем margin для лучшего контроля */
+        }
+
+        .menu-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; width: 100%; max-width: 320px; }
+        .menu-button { position: relative; background-color: var(--card-color); color: var(--text-color); border: none; border-radius: 16px; padding: 1.2rem 1rem; font-size: 1.5rem; font-weight: 700; cursor: pointer; transition: all var(--transition-speed); box-shadow: var(--box-shadow); text-align: center; overflow: hidden; }
+        .menu-button:not(:disabled):hover { transform: translateY(-6px); box-shadow: 0 12px 35px rgba(60, 70, 80, 0.15); }
+        body[data-theme='dark'] .menu-button:not(:disabled):hover { box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25); }
+        .menu-button:disabled { cursor: not-allowed; opacity: 0.6; }
+        .menu-button .level-info { font-size: 0.9rem; font-weight: 400; opacity: 0.6; margin-top: 5px; }
+        .lock-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; backdrop-filter: blur(2px); opacity: 0; pointer-events: none; transition: opacity var(--transition-speed); }
+        .menu-button.locked .lock-overlay { opacity: 1; }
+        .lock-icon { font-size: 2rem; }
+        .unlock-progress { font-size: 0.9rem; font-weight: 600; margin-top: 0.5rem; }
+        
+        .bottom-buttons-container {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem; /* Небольшой отступ сверху */
+        }
+        .bottom-button {
+            background-color: var(--card-color); border: 1px solid var(--grid-border-color);
+            color: var(--text-color); padding: 0.8rem 1.5rem; border-radius: 12px;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: all var(--transition-speed);
+        }
+        .bottom-button:hover { transform: translateY(-3px); box-shadow: var(--box-shadow); }
+        
+        #game-screen { justify-content: flex-start; padding-top: 2rem; }
+        .grid-wrapper { flex-grow: 1; width: 100%; display: flex; align-items: center; justify-content: center; }
+        .game-header { width: 100%; max-width: 500px; display: flex; justify-content: space-between; align-items: center; padding: 0 5px; margin-bottom: 1rem; }
+        .game-header-button { background-color: var(--card-color); border: 1px solid var(--grid-border-color); color: var(--text-color); padding: 0.6rem 1.2rem; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all var(--transition-speed); }
+        .game-header-button:hover { transform: translateY(-3px); box-shadow: var(--box-shadow); border-color: var(--accent-color); }
+        .game-header-button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .level-display { font-size: 1.5rem; font-weight: 700; color: var(--accent-color); }
+        #grid-container { display: grid; gap: 6px; width: 90vw; max-width: 500px; user-select: none; }
+        .grid-cell { aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; background-color: var(--card-color); border: 1px solid transparent; border-radius: 12px; font-size: clamp(1rem, 5vw, 2rem); font-weight: 700; text-transform: uppercase; color: var(--text-color); transition: all var(--transition-fast); cursor: pointer; }
+        .grid-cell.selected { background-color: var(--selected-color); color: var(--text-selected-color); transform: scale(0.9); border-color: var(--accent-color); }
+        .grid-cell.found { color: #fff; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4); }
+        .grid-cell.hint { animation: hint-pulse 1s ease-in-out; }
+        @keyframes hint-pulse { 0% { box-shadow: inset 0 0 0 0px var(--hint-color); } 50% { box-shadow: inset 0 0 0 4px var(--hint-color); } 100% { box-shadow: inset 0 0 0 0px var(--hint-color); } }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity var(--transition-speed); z-index: 1000; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content { background-color: var(--card-color); padding: 2rem; border-radius: 20px; text-align: center; box-shadow: var(--box-shadow); transform: scale(0.8); transition: transform var(--transition-speed) ease-out; width: 90%; max-width: 380px; }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        .modal-content h2 { font-size: 2.2rem; font-weight: 800; color: var(--accent-color); margin-top: 0; margin-bottom: 0.5rem; }
+        .modal-content p { font-size: 1.1rem; margin-bottom: 1.5rem; opacity: 0.8; line-height: 1.5; text-align: left;}
+        .modal-buttons { display: flex; flex-direction: column; gap: 0.8rem; }
+        .modal-button { background-color: var(--accent-color); color: white; border: none; border-radius: 12px; padding: 1rem; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all var(--transition-speed); width: 100%; }
+        .modal-button:hover { background-color: var(--accent-hover-color); transform: scale(1.05); }
+        .modal-button.secondary { background-color: transparent; color: var(--accent-color); border: 2px solid var(--grid-border-color); }
+        .modal-button.secondary:hover { background-color: var(--grid-border-color); }
+        
+        .rules-illustration { display: flex; justify-content: center; margin-bottom: 1.5rem; }
+        .illustration-grid { display: grid; grid-template-columns: repeat(3, 40px); gap: 4px; }
+        .illustration-cell { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background-color: var(--grid-border-color); border-radius: 8px; font-weight: 700; font-size: 1.5rem; }
+        .illustration-cell.highlighted { background-color: var(--accent-color); color: white; }
+
+        .toast-notification { position: fixed; bottom: 20%; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.7); color: white; padding: 12px 20px; border-radius: 25px; font-size: 1rem; font-weight: 600; z-index: 2000; opacity: 0; transition: opacity 0.4s ease, transform 0.4s ease; pointer-events: none; }
+        .toast-notification.show { opacity: 1; transform: translate(-50%, -20px); }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <div id="main-menu" class="screen active">
+            <h1 class="title">Филворды</h1>
+            <div class="menu-grid">
+                <button class="menu-button" data-size="5">5 x 5<div class="level-info" id="level-info-5"></div></button>
+                <button class="menu-button" data-size="6"><div class="button-content">6 x 6<div class="level-info" id="level-info-6"></div></div><div class="lock-overlay"><span class="lock-icon">🔒</span><span class="unlock-progress" id="unlock-progress-6"></span></div></button>
+                <button class="menu-button" data-size="7"><div class="button-content">7 x 7<div class="level-info" id="level-info-7"></div></div><div class="lock-overlay"><span class="lock-icon">🔒</span><span class="unlock-progress" id="unlock-progress-7"></span></div></button>
+                <button class="menu-button" data-size="8"><div class="button-content">8 x 8<div class="level-info" id="level-info-8"></div></div><div class="lock-overlay"><span class="lock-icon">🔒</span><span class="unlock-progress" id="unlock-progress-8"></span></div></button>
+            </div>
+            <div class="bottom-buttons-container">
+                <button id="rules-button" class="bottom-button">Правила</button>
+                <button id="theme-toggle" class="bottom-button">Сменить тему</button>
+            </div>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <div class="game-header">
+                <button class="game-header-button" id="pause-button">❚❚</button>
+                <div id="level-display" class="level-display"></div>
+                <button class="game-header-button" id="hint-button">💡</button>
+            </div>
+            <div class="grid-wrapper">
+                <div id="grid-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="win-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Отлично!</h2><p>Уровень пройден!</p>
+            <div class="modal-buttons">
+                <button id="next-level-button" class="modal-button">Следующий</button>
+                <button id="win-menu-button" class="modal-button secondary">В меню</button>
+            </div>
+        </div>
+    </div>
+    <div id="pause-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Пауза</h2>
+            <div class="modal-buttons">
+                <button id="resume-button" class="modal-button">Продолжить</button>
+                <button id="pause-menu-button" class="modal-button secondary">Выйти в меню</button>
+            </div>
+        </div>
+    </div>
+    <div id="rules-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Правила игры</h2>
+            <p>Найдите все слова, спрятанные в сетке. Слова могут изгибаться в любом направлении, но не пересекаются.</p>
+            <p>Чтобы выделить слово, проведите пальцем или мышью по буквам от начала до конца.</p>
+            <div class="rules-illustration">
+                <div class="illustration-grid">
+                    <div class="illustration-cell">А</div><div class="illustration-cell highlighted">К</div><div class="illustration-cell">Б</div>
+                    <div class="illustration-cell">В</div><div class="illustration-cell highlighted">О</div><div class="illustration-cell">Г</div>
+                    <div class="illustration-cell">Д</div><div class="illustration-cell highlighted">Т</div><div class="illustration-cell">Е</div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button id="close-rules-button" class="modal-button">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        // --- НАСТРОЙКИ ИГРЫ ---
+        const LEVELS_TO_UNLOCK = 30;
+        const INTERSTITIAL_AD_FREQUENCY = 2;
+        
+        // --- VK ---
+        let vkUserId = null;
+        let levelsPlayedSinceAd = 0;
+        const APP_ID = 53867134; 
+
+        // --- ИГРОВЫЕ ДАННЫЕ ---
+        let gameState = {
+            levels: { 5: 1, 6: 1, 7: 1, 8: 1 },
+            theme: 'light',
+        };
+        const wordsDB = {
+            4: ["БАБА"],
+            5: ["АББАТ"],
+            6: ["АБАЖУР"],
+            7: ["АВТОБУС"],
+            8: ["АКАДЕМИЯ"],
+            9: ["АТМОСФЕРА"],
+            10: ["АВТОМОБИЛЬ"],
+            11: ["БОЛЬШИНСТВО"]};
+        const foundColors = [ { bg: '#f39c12' }, { bg: '#2ecc71' }, { bg: '#3498db' }, { bg: '#9b59b6' }, { bg: '#e74c3c' }, { bg: '#1abc9c' }, { bg: '#f1c40f' }, { bg: '#27ae60' }, { bg: '#2980b9' }, { bg: '#8e44ad' } ];
+        const state = { gridSize: 0, words: [], wordCellCoords: new Map(), grid: [], foundWords: [], isSelecting: false, selectedCells: [], hintedWord: null, hintedLetterIndex: 0, };
+        const dom = {
+            mainMenu: document.getElementById('main-menu'),
+            gameScreen: document.getElementById('game-screen'),
+            gridContainer: document.getElementById('grid-container'),
+            levelDisplay: document.getElementById('level-display'),
+            themeToggle: document.getElementById('theme-toggle'),
+            winModal: document.getElementById('win-modal'),
+            pauseModal: document.getElementById('pause-modal'),
+            rulesModal: document.getElementById('rules-modal'),
+            pauseButton: document.getElementById('pause-button'),
+            hintButton: document.getElementById('hint-button'),
+            nextLevelButton: document.getElementById('next-level-button'),
+            resumeButton: document.getElementById('resume-button'),
+            winMenuButton: document.getElementById('win-menu-button'),
+            pauseMenuButton: document.getElementById('pause-menu-button'),
+            rulesButton: document.getElementById('rules-button'),
+            closeRulesButton: document.getElementById('close-rules-button'),
+        };
+
+        async function initVk() {
+            try {
+                await vkBridge.send('VKWebAppInit', {});
+                await vkBridge.send('VKWebAppCheckNativeAds', { ad_format: 'reward' });
+                const user = await vkBridge.send('VKWebAppGetUserInfo');
+                vkUserId = user.id;
+                await loadGameData();
+                await vkBridge.send('VKWebAppShowBannerAd', { banner_location: 'bottom' });
+            } catch (error) {
+                console.warn('VK Init failed, running in guest mode.', error);
+                vkUserId = 'guest_' + Math.random().toString(36).substr(2, 9);
+                await loadGameData();
+            } finally {
+                initGameUI();
+            }
+        }
+
+        async function saveGameData() {
+            if (!vkUserId) return;
+            const storageKey = `fillword_save_${vkUserId}`;
+            try { await vkBridge.send('VKWebAppStorageSet', { key: storageKey, value: JSON.stringify(gameState) }); } 
+            catch (error) { localStorage.setItem(storageKey, JSON.stringify(gameState)); }
+        }
+
+        async function loadGameData() {
+            if (!vkUserId) return;
+            const storageKey = `fillword_save_${vkUserId}`;
+            try {
+                const response = await vkBridge.send('VKWebAppStorageGet', { keys: [storageKey] });
+                const data = response.keys[0]?.value ? JSON.parse(response.keys[0].value) : null;
+                if (data) {
+                    gameState.theme = data.theme || 'light';
+                    gameState.levels = { ...gameState.levels, ...data.levels };
+                } else { const localData = localStorage.getItem(storageKey); if(localData) gameState = JSON.parse(localData); }
+            } catch (error) { const localData = localStorage.getItem(storageKey); if(localData) gameState = JSON.parse(localData); }
+        }
+
+        async function showInterstitialAd() {
+            levelsPlayedSinceAd++;
+            if (levelsPlayedSinceAd >= INTERSTITIAL_AD_FREQUENCY) {
+                try {
+                    await vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial' });
+                    levelsPlayedSinceAd = 0;
+                } catch (error) {
+                    console.warn('Interstitial Ad error:', error);
+                    levelsPlayedSinceAd = 0;
+                }
+            }
+        }
+        
+        function initGameUI() {
+            document.body.dataset.theme = gameState.theme;
+            updateMainMenu();
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            document.querySelectorAll('.menu-button').forEach(b => b.addEventListener('click', () => startGame(parseInt(b.dataset.size))));
+            dom.themeToggle.addEventListener('click', toggleTheme);
+            dom.pauseButton.addEventListener('click', () => showModal(dom.pauseModal));
+            dom.resumeButton.addEventListener('click', () => hideModal(dom.pauseModal));
+            dom.winMenuButton.addEventListener('click', showMainMenu);
+            dom.pauseMenuButton.addEventListener('click', showMainMenu);
+            dom.hintButton.addEventListener('click', handleHintClick);
+            dom.nextLevelButton.addEventListener('click', nextLevel);
+            dom.rulesButton.addEventListener('click', () => showModal(dom.rulesModal));
+            dom.closeRulesButton.addEventListener('click', () => hideModal(dom.rulesModal));
+            dom.gridContainer.addEventListener('mousedown', handleMouseDown);
+            dom.gridContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+            document.addEventListener('gesturestart', e => e.preventDefault());
+        }
+
+        function updateMainMenu() {
+            const gridSizes = [5, 6, 7, 8];
+            gridSizes.forEach((size, index) => {
+                const level = gameState.levels[size] || 1;
+                document.getElementById(`level-info-${size}`).textContent = `Уровень: ${level}`;
+                const button = document.querySelector(`.menu-button[data-size="${size}"]`);
+                if (index > 0) {
+                    const prevLevel = gameState.levels[gridSizes[index - 1]] || 1;
+                    const isLocked = prevLevel < LEVELS_TO_UNLOCK;
+                    button.disabled = isLocked;
+                    button.classList.toggle('locked', isLocked);
+                    if (isLocked) document.getElementById(`unlock-progress-${size}`).textContent = `${prevLevel} / ${LEVELS_TO_UNLOCK}`;
+                }
+            });
+        }
+        
+        function toggleTheme() {
+            gameState.theme = document.body.dataset.theme === 'light' ? 'dark' : 'light';
+            document.body.dataset.theme = gameState.theme;
+            saveGameData();
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            if (screenId === 'game-screen') {
+                window.addEventListener('mousemove', handleMouseMove); window.addEventListener('mouseup', handleMouseUp);
+                window.addEventListener('touchmove', handleTouchMove, { passive: false }); window.addEventListener('touchend', handleTouchEnd);
+            } else {
+                window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp);
+                window.removeEventListener('touchmove', handleTouchMove); window.removeEventListener('touchend', handleTouchEnd);
+            }
+        }
+        
+        function startGame(size) {
+            const button = document.querySelector(`.menu-button[data-size="${size}"]`);
+            if (button.disabled) return;
+            state.gridSize = size;
+            showScreen('game-screen');
+            generateLevel();
+        }
+
+        function showMainMenu() {
+            hideModal(dom.winModal); hideModal(dom.pauseModal);
+            showScreen('main-menu');
+            updateMainMenu();
+        }
+
+        async function nextLevel() {
+            hideModal(dom.winModal);
+            gameState.levels[state.gridSize]++;
+            await saveGameData();
+            await showInterstitialAd();
+            generateLevel();
+        }
+
+        function generateLevel() {
+            resetStateForNewLevel();
+            dom.levelDisplay.textContent = `Уровень ${gameState.levels[state.gridSize]}`;
+            const requiredArea = state.gridSize * state.gridSize;
+            state.words = findWordCombination(requiredArea);
+            if (!state.words) { 
+                showToast("Ошибка подбора слов. Попробуйте снова.");
+                showMainMenu(); 
+                return;
+            }
+            let success = false; let attempts = 0;
+            while(!success && attempts++ < 200) {
+                state.grid = createEmptyGrid();
+                state.wordCellCoords.clear();
+                success = placeWordsOnGrid();
+            }
+            if(!success) {
+                showToast("Ошибка генерации уровня. Пожалуйста, вернитесь в меню.");
+                showMainMenu(); 
+                return;
+            }
+            renderGrid();
+        }
+        
+        const showModal = (modal) => modal.classList.add('active');
+        const hideModal = (modal) => modal.classList.remove('active');
+        const resetStateForNewLevel = () => { Object.assign(state, { foundWords: [], selectedCells: [], hintedWord: null, hintedLetterIndex: 0 }); dom.gridContainer.innerHTML = ''; };
+        const findWordCombination = (targetSum) => { const allWords = Object.values(wordsDB).flat().map(w => w.toLowerCase()); const uniqueWords = [...new Set(allWords)]; uniqueWords.sort(() => Math.random() - 0.5); let result = null; function backtrack(startIndex, currentSum, combination) { if (result) return; if (currentSum === targetSum) { result = [...combination]; return; } if (currentSum > targetSum || startIndex === uniqueWords.length) return; const word = uniqueWords[startIndex]; combination.push(word); backtrack(startIndex + 1, currentSum + word.length, combination); if (result) return; combination.pop(); backtrack(startIndex + 1, currentSum, combination); } backtrack(0, 0, []); return result; };
+        const createEmptyGrid = () => Array.from({ length: state.gridSize }, () => Array(state.gridSize).fill(null));
+        function placeWordsOnGrid() { const sortedWords = [...state.words].sort((a, b) => b.length - a.length); for (const word of sortedWords) { let placed = false; for (let i = 0; i < 150; i++) { const path = findPathForWord(word.length); if (path) { state.wordCellCoords.set(word, path); path.forEach((pos, j) => { state.grid[pos.r][pos.c] = word[j]; }); placed = true; break; } } if (!placed) return false; } return true; }
+        function findPathForWord(length) { const startR = Math.floor(Math.random() * state.gridSize), startC = Math.floor(Math.random() * state.gridSize); const path = []; function backtrack(r, c) { if (path.length === length) return true; if (r < 0 || r >= state.gridSize || c < 0 || c >= state.gridSize || state.grid[r][c] !== null) return false; path.push({ r, c }); state.grid[r][c] = 'temp'; const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]].sort(() => Math.random() - 0.5); for (const [dr, dc] of directions) { if (backtrack(r + dr, c + dc)) { state.grid[r][c] = null; return true; } } path.pop(); state.grid[r][c] = null; return false; } return backtrack(startR, startC) ? path : null; }
+        function renderGrid() { dom.gridContainer.innerHTML = ''; dom.gridContainer.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`; state.grid.forEach((row, r) => { row.forEach((letter, c) => { const cell = document.createElement('div'); cell.className = 'grid-cell'; cell.dataset.r = r; cell.dataset.c = c; cell.textContent = letter; dom.gridContainer.appendChild(cell); }); }); }
+        const getCellFromCoords = ({ clientX, clientY }) => document.elementFromPoint(clientX, clientY);
+        function startSelection(target) { const cell = target.closest('.grid-cell'); if (cell && !cell.classList.contains('found')) { state.isSelecting = true; addCellToSelection(cell); } }
+        function moveSelection(target) { if (!state.isSelecting) return; const cell = target.closest('.grid-cell'); if (cell && !cell.classList.contains('found')) addCellToSelection(cell); }
+        function endSelection() { if (state.isSelecting) { state.isSelecting = false; checkSelectedWord(); } }
+        const handleMouseDown = (e) => startSelection(e.target);
+        const handleMouseMove = (e) => moveSelection(e.target);
+        const handleMouseUp = () => endSelection();
+        const handleTouchStart = (e) => { e.preventDefault(); startSelection(getCellFromCoords(e.touches[0])); };
+        const handleTouchMove = (e) => { e.preventDefault(); moveSelection(getCellFromCoords(e.touches[0])); };
+        const handleTouchEnd = () => endSelection();
+        function addCellToSelection(cellEl) { const r = parseInt(cellEl.dataset.r), c = parseInt(cellEl.dataset.c); if (state.selectedCells.some(cell => cell.r === r && cell.c === c)) return; const lastCell = state.selectedCells[state.selectedCells.length - 1]; if (lastCell && Math.abs(lastCell.r - r) + Math.abs(lastCell.c - c) !== 1) return; state.selectedCells.push({r, c}); updateSelectionLook(); }
+        function checkSelectedWord() { if (state.selectedCells.length === 0) return; const selectedWordStr = state.selectedCells.map(({r, c}) => state.grid[r][c]).join(''); const wordData = state.words.find(w => w === selectedWordStr.toLowerCase()); if (wordData && !state.foundWords.includes(wordData)) { if (wordData === state.hintedWord) clearHint(); state.foundWords.push(wordData); markWordAsFound(wordData); if (state.foundWords.length === state.words.length) setTimeout(() => showModal(dom.winModal), 500); } state.selectedCells = []; updateSelectionLook(); }
+        const updateSelectionLook = () => { document.querySelectorAll('.grid-cell.selected').forEach(c => c.classList.remove('selected')); state.selectedCells.forEach(({r, c}) => { const cellEl = document.querySelector(`.grid-cell[data-r='${r}'][data-c='${c}']`); if(cellEl) cellEl.classList.add('selected'); }); };
+        function markWordAsFound(word) { const colorIndex = (state.foundWords.length - 1) % foundColors.length; const color = foundColors[colorIndex]; const coords = state.wordCellCoords.get(word); coords.forEach(({r, c}) => { const cellEl = document.querySelector(`.grid-cell[data-r='${r}'][data-c='${c}']`); if (cellEl) { cellEl.classList.add('found'); cellEl.style.backgroundColor = color.bg; cellEl.style.color = '#ffffff'; } }); }
+        
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.classList.add('show'); }, 10);
+            setTimeout(() => { toast.classList.remove('show'); toast.addEventListener('transitionend', () => toast.remove()); }, 3000);
+        }
+
+        async function handleHintClick() {
+            if (dom.hintButton.disabled) return;
+            dom.hintButton.disabled = true;
+            try {
+                const adStatus = await vkBridge.send('VKWebAppCheckNativeAds', { ad_format: 'reward' });
+                if (adStatus.result) {
+                    const adResult = await vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward' });
+                    if (adResult.result) { grantHint(); } 
+                    else { showToast('Просмотрите рекламу до конца'); }
+                } else { showToast('Подсказка пока недоступна'); }
+            } catch (error) {
+                console.error('Rewarded ad error:', error);
+                showToast('Ошибка при показе рекламы');
+            } finally {
+                dom.hintButton.disabled = false;
+            }
+        }
+        function grantHint() {
+            if (!state.hintedWord) {
+                const unfoundWords = state.words.filter(w => !state.foundWords.includes(w));
+                if (unfoundWords.length === 0) { showToast('Все слова найдены!'); return; }
+                state.hintedWord = unfoundWords[Math.floor(Math.random() * unfoundWords.length)];
+                state.hintedLetterIndex = 0;
+            }
+            if (state.hintedLetterIndex >= state.hintedWord.length) { showToast('Все буквы этого слова уже подсказаны'); return; }
+            state.hintedLetterIndex++;
+            const coords = state.wordCellCoords.get(state.hintedWord);
+            const cellsToAnimate = [];
+            for (let i = 0; i < state.hintedLetterIndex; i++) {
+                const cellEl = document.querySelector(`.grid-cell[data-r='${coords[i].r}'][data-c='${coords[i].c}']`);
+                if (cellEl) cellsToAnimate.push(cellEl);
+            }
+            document.querySelectorAll('.grid-cell.hint').forEach(cell => cell.classList.remove('hint'));
+            setTimeout(() => cellsToAnimate.forEach(cell => cell.classList.add('hint')), 10);
+        }
+        const clearHint = () => { state.hintedWord = null; state.hintedLetterIndex = 0; document.querySelectorAll('.grid-cell.hint').forEach(cell => cell.classList.remove('hint')); };
+
+        // --- ПЕРВЫЙ ЗАПУСК ---
+        initVk();
+    });
+    </script>
+</body>
+</html>
+
