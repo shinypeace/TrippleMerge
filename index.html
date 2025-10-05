@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Triple Merge</title>
+    <title>Мастер слияния</title>
+    <!-- VK Bridge -->
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -80,6 +83,9 @@
             flex-grow: 1;
             display: flex;
             flex-direction: column;
+        }
+        .screen.hidden {
+            display: none;
         }
         
         .modal-overlay {
@@ -174,7 +180,7 @@
             background-color: var(--grid-bg);
             padding: 0.75rem;
             border-radius: 1rem;
-            touch-action: none; /* Disable panning and zooming on the grid */
+            touch-action: none;
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             grid-template-rows: repeat(6, 1fr);
@@ -211,76 +217,28 @@
             100% { transform: scale(1); }
         }
         
-        /* Toggle Switch */
         .switch {
-          position: relative;
-          display: inline-block;
-          width: 60px;
-          height: 34px;
+          position: relative; display: inline-block;
+          width: 60px; height: 34px;
         }
-
-        .switch input { 
-          opacity: 0;
-          width: 0;
-          height: 0;
-        }
-
+        .switch input { opacity: 0; width: 0; height: 0; }
         .slider {
-          position: absolute;
-          cursor: pointer;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-color: var(--cell-bg);
-          -webkit-transition: .4s;
-          transition: .4s;
+          position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+          background-color: var(--cell-bg); -webkit-transition: .4s; transition: .4s;
           border-radius: 34px;
         }
-
         .slider:before {
-          position: absolute;
-          content: "";
-          height: 26px;
-          width: 26px;
-          left: 4px;
-          bottom: 4px;
-          background-color: white;
-          -webkit-transition: .4s;
-          transition: .4s;
+          position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px;
+          background-color: white; -webkit-transition: .4s; transition: .4s;
           border-radius: 50%;
         }
-
-        input:checked + .slider {
-          background-color: var(--accent-color);
-        }
-
-        input:focus + .slider {
-          box-shadow: 0 0 1px var(--accent-color);
-        }
-
-        input:checked + .slider:before {
-          -webkit-transform: translateX(26px);
-          -ms-transform: translateX(26px);
-          transform: translateX(26px);
-        }
-
-        .rule-item {
-            display: flex;
-            align-items: center;
-            text-align: left;
-            padding: 0.75rem;
-            background-color: var(--cell-bg);
-            border-radius: 0.75rem;
-        }
-        .rule-item svg {
-            flex-shrink: 0;
-            margin-right: 0.75rem;
-            color: var(--accent-color);
-        }
+        input:checked + .slider { background-color: var(--accent-color); }
+        input:focus + .slider { box-shadow: 0 0 1px var(--accent-color); }
+        input:checked + .slider:before { transform: translateX(26px); }
     </style>
 </head>
 <body>
+    <audio id="bg-music" src="music.mp3" loop></audio>
 
     <div class="game-container">
         <div class="game-wrapper">
@@ -289,9 +247,12 @@
             <div id="main-menu" class="screen p-8 flex flex-col justify-between items-center text-center">
                 <div></div> <!-- Spacer -->
                 <div class="w-full">
-                    <h1 class="text-6xl font-black tracking-tighter" style="background: linear-gradient(45deg, var(--accent-color), #f87171); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Triple Merge</h1>
+                    <h1 class="text-6xl font-black tracking-tighter" style="background: linear-gradient(45deg, var(--accent-color), #f87171); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Мастер слияния</h1>
                     <p class="text-lg mt-2" style="color: var(--text-secondary)">Соединяй числа, ставь рекорды</p>
-                    <button id="play-btn" class="btn btn-primary w-full max-w-xs mt-16 text-2xl py-4">Играть</button>
+                    <div class="mt-12 flex flex-col items-center space-y-4">
+                        <button id="play-btn" class="btn btn-primary w-full max-w-xs text-2xl py-4">Играть</button>
+                        <button id="other-games-btn" class="btn btn-secondary w-full max-w-xs text-xl py-3">Другие игры</button>
+                    </div>
                 </div>
                 <div class="flex space-x-4">
                     <button id="stats-btn-main" class="icon-btn" aria-label="Статистика">
@@ -322,11 +283,16 @@
                     </div>
                 </div>
                 <div id="game-grid-container" class="w-full flex-grow p-1 flex items-center justify-center">
-                    <div id="game-grid" class="w-full" style="aspect-ratio: 5 / 6;">
-                        <!-- Tiles will be appended here by JS -->
-                    </div>
+                    <div id="game-grid" class="w-full" style="aspect-ratio: 5 / 6;"></div>
                     <canvas id="line-canvas" class="absolute pointer-events-none z-10"></canvas>
                 </div>
+            </div>
+            
+            <!-- Other Games Screen -->
+            <div id="other-games-screen" class="screen hidden p-4 flex flex-col">
+                 <h1 class="text-3xl font-bold text-center mb-4">Другие игры</h1>
+                 <div id="other-games-container" class="grid grid-cols-3 gap-x-4 gap-y-5 flex-grow overflow-y-auto p-2"></div>
+                 <button id="back-to-menu-btn" class="btn btn-secondary w-full text-lg mt-4">Назад</button>
             </div>
 
         </div>
@@ -334,7 +300,7 @@
 
     <!-- Modals -->
     <div id="modal-container">
-        <!-- Pause Modal -->
+        <!-- Pause Modal, Game Over, etc. -->
         <div id="pause-modal" class="modal-overlay">
             <div class="modal-content">
                 <h2 class="text-3xl font-bold mb-6">Пауза</h2>
@@ -345,8 +311,6 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Game Over Modal -->
         <div id="game-over-modal" class="modal-overlay">
             <div class="modal-content">
                 <h2 class="text-3xl font-bold mb-2">Игра окончена!</h2>
@@ -357,45 +321,38 @@
                 </div>
             </div>
         </div>
-
-        <!-- Settings Modal -->
         <div id="settings-modal" class="modal-overlay">
-            <div class="modal-content">
-                <h2 class="text-3xl font-bold mb-6">Настройки</h2>
-                <div class="flex justify-between items-center mb-6">
+            <div class="modal-content text-left space-y-4">
+                <h2 class="text-3xl font-bold mb-2 text-center">Настройки</h2>
+                <div class="flex justify-between items-center">
                     <span class="text-lg">Темная тема</span>
                     <label class="switch">
                         <input type="checkbox" id="theme-toggle">
                         <span class="slider"></span>
                     </label>
                 </div>
-                <button id="close-settings-btn" class="btn btn-secondary w-full text-lg">Закрыть</button>
+                <div class="flex justify-between items-center">
+                    <span class="text-lg">Музыка</span>
+                    <input type="range" id="music-volume" class="w-1/2" min="0" max="100" value="30">
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-lg">Звуки</span>
+                    <input type="range" id="sfx-volume" class="w-1/2" min="0" max="100" value="70">
+                </div>
+                <button id="close-settings-btn" class="btn btn-secondary w-full text-lg !mt-6">Закрыть</button>
             </div>
         </div>
-        
-        <!-- Rules Modal -->
         <div id="rules-modal" class="modal-overlay">
             <div class="modal-content text-left">
                 <h2 class="text-3xl font-bold mb-6 text-center">Правила игры</h2>
                 <div class="space-y-3">
-                    <div class="rule-item">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5c-1.5 1.5-2 3.5-2 5.5s.5 4 2 5.5c1.5 1.5 3.5 2 5.5 2s4-.5 5.5-2c.8-1.1 1.5-2.5 1.5-4M4 10.5v-6c0-1.1.9-2 2-2h6c1.1 0 2 .9 2 2v2.5"/><path d="m14 7 7 7-7 7"/><path d="M4 10.5 14 21"/></svg>
-                        <span>Соединяйте <strong>3+</strong> одинаковых числа по горизонтали, вертикали или диагонали.</span>
-                    </div>
-                     <div class="rule-item">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2Z"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
-                        <span>Длинные цепочки дают плитки большего номинала и больше очков.</span>
-                    </div>
-                     <div class="rule-item">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="m12 16-4-4"/><path d="m12 16 4-4"/><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M17.66 6.34l-1.41-1.41"/><path d="M22 12h-2"/><path d="M4 12H2"/></svg>
-                        <span>Новые плитки падают сверху, заполняя пустые места.</span>
-                    </div>
+                    <p>● Соединяйте <strong>3+</strong> одинаковых числа.</p>
+                    <p>● Длинные цепочки дают плитки большего номинала.</p>
+                    <p>● Новые плитки падают сверху, заполняя пустые места.</p>
                 </div>
                 <button id="close-rules-btn" class="btn btn-secondary w-full text-lg mt-6">Понятно</button>
             </div>
         </div>
-
-        <!-- Stats Modal -->
         <div id="stats-modal" class="modal-overlay">
             <div class="modal-content">
                 <h2 class="text-3xl font-bold mb-6">Статистика</h2>
@@ -410,18 +367,22 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Game Constants
+            // Game Constants & Elements
             const ROWS = 6;
             const COLS = 5;
-            
-            // DOM Elements
+            const screens = {
+                mainMenu: document.getElementById('main-menu'),
+                game: document.getElementById('game-screen'),
+                otherGames: document.getElementById('other-games-screen')
+            };
             const gameGrid = document.getElementById('game-grid');
             const lineCanvas = document.getElementById('line-canvas');
             const ctx = lineCanvas.getContext('2d');
-            const mainMenu = document.getElementById('main-menu');
-            const gameScreen = document.getElementById('game-screen');
             const currentScoreEl = document.getElementById('current-score');
             const highScoreEl = document.getElementById('high-score');
+            const bgMusic = document.getElementById('bg-music');
+            const otherGamesContainer = document.getElementById('other-games-container');
+            const allButtons = document.querySelectorAll('button');
             
             // Modals & Buttons...
             const pauseModal = document.getElementById('pause-modal');
@@ -444,6 +405,11 @@
             const statsBtnMain = document.getElementById('stats-btn-main');
             const closeStatsBtn = document.getElementById('close-stats-btn');
             const themeToggle = document.getElementById('theme-toggle');
+            const musicVolumeSlider = document.getElementById('music-volume');
+            const sfxVolumeSlider = document.getElementById('sfx-volume');
+            const otherGamesBtn = document.getElementById('other-games-btn');
+            const backToMenuBtn = document.getElementById('back-to-menu-btn');
+
 
             // Game State
             let grid = [];
@@ -454,9 +420,20 @@
             let isSelecting = false;
             let selectedPath = [];
             let currentSelectionValue = 0;
+            let vkUserId = null;
+            let wasMusicPlaying = false;
             
-            // Stats
-            let stats = { highScore: 0, maxTile: 0 };
+            // Audio state
+            let audioContextStarted = false;
+            let mergeSynth, clickSynth;
+            
+            // App Data
+            let appData = {
+                theme: 'light',
+                musicVolume: 30,
+                sfxVolume: 70,
+                stats: { highScore: 0, maxTile: 0 }
+            };
 
             const TILE_COLORS = {
                 2: 'bg-blue-400', 4: 'bg-blue-500', 8: 'bg-indigo-500', 16: 'bg-purple-500',
@@ -467,20 +444,57 @@
 
             // --- Game Initialization ---
             
-            function init() {
+            async function init() {
                 let vh = window.innerHeight * 0.01;
                 document.documentElement.style.setProperty('--vh', `${vh}px`);
+                
+                vkBridge.send('VKWebAppInit');
+                
+                vkBridge.subscribe(e => {
+                    if (e.detail.type === 'VKWebAppViewHide') {
+                        if (!bgMusic.paused) {
+                            wasMusicPlaying = true;
+                            bgMusic.pause();
+                        }
+                    }
+                    if (e.detail.type === 'VKWebAppViewRestore') {
+                        if (wasMusicPlaying) {
+                           bgMusic.play().catch(e => {});
+                        }
+                        wasMusicPlaying = false;
+                    }
+                });
 
-                loadTheme();
-                loadStats();
+                try {
+                    const user = await vkBridge.send('VKWebAppGetUserInfo');
+                    vkUserId = user.id;
+                } catch (error) {
+                    console.warn("Could not get VK User ID.", error);
+                    vkUserId = 'test_user';
+                }
+
+                await loadData();
+                setupAudio();
+                applySettings();
                 updateScore(0);
                 addEventListeners();
+                renderOtherGames();
+                showScreen('mainMenu');
+            }
+            
+            function setupAudio() {
+                 mergeSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: 'fmsine', modulationIndex: 2, harmonicity: 0.5 },
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 }
+                }).toDestination();
+                clickSynth = new Tone.Synth({
+                    oscillator: { type: 'triangle' },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+                }).toDestination();
             }
 
             function startGame() {
-                mainMenu.classList.add('hidden');
-                gameScreen.classList.remove('hidden');
-                
+                showScreen('game');
                 grid = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
                 updateScore(0);
                 isGameOver = false;
@@ -500,8 +514,13 @@
                 }
                 
                 renderGrid(true);
-                setTimeout(resizeCanvas, 100); // Allow grid to render before sizing canvas
-                saveStats();
+                setTimeout(resizeCanvas, 100);
+            }
+
+            function showScreen(screenName) {
+                Object.values(screens).forEach(s => s.classList.add('hidden'));
+                screens[screenName].classList.remove('hidden');
+                vkBridge.send('VKWebAppShowBannerAd', { banner_location: 'bottom' }).catch(e => {});
             }
 
             // --- UI & Rendering ---
@@ -517,50 +536,36 @@
 
             function createTile(r, c, value, isInitial = false, isNew = false) {
                 if (value === 0) return;
-
                 const tile = document.createElement('div');
                 const { cellWidth, cellHeight, gap } = getGridMetrics();
-
                 tile.id = `tile-${r}-${c}`;
                 tile.className = `tile ${TILE_COLORS[value] || 'bg-gray-800'}`;
                 tile.textContent = value;
-                
                 tile.style.width = `${cellWidth}px`;
                 tile.style.height = `${cellHeight}px`;
                 tile.style.left = `${c * (cellWidth + gap)}px`;
                 
-                if (isNew) {
-                    tile.style.top = `-${cellHeight}px`;
-                } else {
-                    tile.style.top = `${r * (cellHeight + gap)}px`;
-                }
-
-                if (isInitial) {
-                    tile.style.transform = 'scale(0)';
-                }
-                
+                if (isNew) tile.style.top = `-${cellHeight}px`;
+                else tile.style.top = `${r * (cellHeight + gap)}px`;
+                if (isInitial) tile.style.transform = 'scale(0)';
                 gameGrid.appendChild(tile);
-
                 requestAnimationFrame(() => {
                     if (isInitial) {
                         tile.style.transition = 'transform 0.2s';
                         tile.style.transform = 'scale(1)';
                     }
-                     if (isNew) {
-                        tile.style.top = `${r * (cellHeight + gap)}px`;
-                    }
+                     if (isNew) tile.style.top = `${r * (cellHeight + gap)}px`;
                 });
             }
 
             function updateScore(newScore, isAdding = false) {
                 if (isAdding) currentScore += newScore;
                 else currentScore = newScore;
-                
                 currentScoreEl.textContent = currentScore;
-                if (currentScore > stats.highScore) {
-                    stats.highScore = currentScore;
+                if (currentScore > appData.stats.highScore) {
+                    appData.stats.highScore = currentScore;
                 }
-                highScoreEl.textContent = stats.highScore;
+                highScoreEl.textContent = appData.stats.highScore;
             }
             
             function resizeCanvas() {
@@ -571,6 +576,29 @@
                 lineCanvas.style.top = `${gridRect.top - containerRect.top}px`;
                 lineCanvas.style.left = `${gridRect.left - containerRect.left}px`;
             }
+            
+            function renderOtherGames() {
+                otherGamesContainer.innerHTML = '';
+                const games = [
+                    { name: 'Bubble Shooter', appId: 54051411, icon: 'icon1.png' }, { name: 'Тетрис', appId: 54051413, icon: 'icon2.png' },
+                    { name: 'Tower Blocks', appId: 53962513, icon: 'icon3.png' }, { name: 'Блок Про', appId: 53936296, icon: 'icon4.png' },
+                    { name: 'Филворды', appId: 53867134, icon: 'icon5.png' }, { name: 'Словли', appId: 53861990, icon: 'icon6.png' },
+                    { name: 'Brick Balls', appId: 54023580, icon: 'icon7.png' }, { name: '2048', appId: 53965380, icon: 'icon8.png' },
+                    { name: 'Math Matrix', appId: 53970659, icon: 'icon9.png' }
+                ];
+                games.forEach(game => {
+                    const gameEl = document.createElement('div');
+                    gameEl.className = "flex flex-col items-center cursor-pointer group";
+                    gameEl.dataset.appId = game.appId;
+                    gameEl.innerHTML = `
+                        <div class="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-3xl mb-2 flex items-center justify-center group-hover:scale-105 transition-transform overflow-hidden">
+                           <img src="${game.icon}" alt="${game.name}" class="w-full h-full object-cover">
+                        </div>
+                        <span class="text-xs font-medium text-center">${game.name}</span>`;
+                    otherGamesContainer.appendChild(gameEl);
+                });
+            }
+
 
             // --- Game Logic ---
 
@@ -588,12 +616,9 @@
                 const y = touch.clientY - rect.top;
 
                 if (x < 0 || x > rect.width || y < 0 || y > rect.height) return null;
-                
                 const { cellWidth, cellHeight, gap } = getGridMetrics();
-
                 const c = Math.floor(x / (cellWidth + gap));
                 const r = Math.floor(y / (cellHeight + gap));
-
                 return (r >= 0 && r < ROWS && c >= 0 && c < COLS) ? {r, c} : null;
             }
             
@@ -601,16 +626,13 @@
                 isMoving = true;
                 const fallDuration = 300;
                 const { cellHeight, gap } = getGridMetrics();
-
                 for (let c = 0; c < COLS; c++) {
                     let writeRow = ROWS - 1;
                     for (let r = ROWS - 1; r >= 0; r--) {
                         if (grid[r][c] !== 0) {
                             if (writeRow !== r) {
-                                const value = grid[r][c];
-                                grid[writeRow][c] = value;
+                                grid[writeRow][c] = grid[r][c];
                                 grid[r][c] = 0;
-
                                 const tileEl = document.getElementById(`tile-${r}-${c}`);
                                 if (tileEl) {
                                     tileEl.style.top = `${writeRow * (cellHeight + gap)}px`;
@@ -621,9 +643,7 @@
                         }
                     }
                 }
-                
                 await new Promise(resolve => setTimeout(resolve, fallDuration));
-
                 const initialValues = [2, 4, 8];
                 for (let r = 0; r < ROWS; r++) {
                     for (let c = 0; c < COLS; c++) {
@@ -634,7 +654,6 @@
                         }
                     }
                 }
-                
                 await new Promise(resolve => setTimeout(resolve, fallDuration));
                 isMoving = false;
             }
@@ -674,7 +693,8 @@
 
             function handleGameOver() {
                 isGameOver = true;
-                saveStats();
+                saveData();
+                vkBridge.send('VKWebAppShowInterstitialAd').catch(e => {});
                 setTimeout(() => {
                     finalScoreEl.textContent = currentScore;
                     gameOverModal.classList.add('active');
@@ -684,11 +704,24 @@
             // --- Event Handlers & Controls ---
 
             function addEventListeners() {
-                playBtn.addEventListener('click', startGame);
-                statsBtnMain.addEventListener('click', () => { updateStatsUI(); statsModal.classList.add('active'); });
+                playBtn.addEventListener('click', () => { playClickSound(); startGame(); });
+                allButtons.forEach(btn => btn.addEventListener('click', playClickSound));
+                document.body.addEventListener('click', async () => {
+                    if (!audioContextStarted) {
+                        await Tone.start();
+                        bgMusic.play().catch(e => console.log("Music play failed:", e));
+                        audioContextStarted = true;
+                    }
+                }, { once: true });
+                statsBtnMain.addEventListener('click', () => { statsModal.classList.add('active'); updateStatsUI(); });
                 rulesBtnMain.addEventListener('click', () => rulesModal.classList.add('active'));
                 settingsBtnMain.addEventListener('click', () => settingsModal.classList.add('active'));
-
+                otherGamesBtn.addEventListener('click', () => showScreen('otherGames'));
+                backToMenuBtn.addEventListener('click', () => showScreen('mainMenu'));
+                otherGamesContainer.addEventListener('click', e => {
+                    const gameEl = e.target.closest('[data-app-id]');
+                    if (gameEl) vkBridge.send('VKWebAppOpenApp', { app_id: parseInt(gameEl.dataset.appId) });
+                });
                 resumeBtn.addEventListener('click', () => { isPaused = false; pauseModal.classList.remove('active'); });
                 [restartBtnPause, restartBtnGameOver].forEach(btn => btn.addEventListener('click', () => {
                     pauseModal.classList.remove('active');
@@ -699,17 +732,28 @@
                 [mainMenuBtnPause, mainMenuBtnGameOver].forEach(btn => btn.addEventListener('click', () => {
                     pauseModal.classList.remove('active');
                     gameOverModal.classList.remove('active');
-                    gameScreen.classList.add('hidden');
-                    mainMenu.classList.remove('hidden');
                     isPaused = false;
+                    showScreen('mainMenu');
                 }));
                 closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
                 closeRulesBtn.addEventListener('click', () => rulesModal.classList.remove('active'));
                 closeStatsBtn.addEventListener('click', () => statsModal.classList.remove('active'));
-
                 pauseBtn.addEventListener('click', () => { if (!isMoving) { isPaused = true; pauseModal.classList.add('active'); }});
-                themeToggle.addEventListener('change', toggleTheme);
-                
+                themeToggle.addEventListener('change', () => {
+                    appData.theme = themeToggle.checked ? 'dark' : 'light';
+                    applySettings();
+                    saveData();
+                });
+                musicVolumeSlider.addEventListener('input', (e) => {
+                    appData.musicVolume = e.target.value;
+                    applySettings();
+                    saveData();
+                });
+                sfxVolumeSlider.addEventListener('input', (e) => {
+                    appData.sfxVolume = e.target.value;
+                    applySettings();
+                    saveData();
+                });
                 const gridContainer = document.getElementById('game-grid-container');
                 gridContainer.addEventListener('mousedown', handleSelectionStart);
                 gridContainer.addEventListener('mousemove', handleSelectionMove);
@@ -718,7 +762,6 @@
                 gridContainer.addEventListener('touchstart', handleSelectionStart, { passive: false });
                 gridContainer.addEventListener('touchmove', handleSelectionMove, { passive: false });
                 document.addEventListener('touchend', handleSelectionEnd);
-
                 window.addEventListener('resize', () => {
                     let vh = window.innerHeight * 0.01;
                     document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -744,12 +787,9 @@
                 e.preventDefault();
                 const cell = getCellFromEvent(e);
                 if (!cell) return;
-
                 const lastCell = selectedPath[selectedPath.length - 1];
                 if (cell.r === lastCell.r && cell.c === lastCell.c) return;
-                
                 const alreadySelected = selectedPath.some(p => p.r === cell.r && p.c === cell.c);
-
                 if (selectedPath.length > 1) {
                     const secondLast = selectedPath[selectedPath.length - 2];
                     if (cell.r === secondLast.r && cell.c === secondLast.c) {
@@ -759,7 +799,6 @@
                         return;
                     }
                 }
-
                 const isAdjacent = Math.abs(cell.r - lastCell.r) <= 1 && Math.abs(cell.c - lastCell.c) <= 1;
                 if (!alreadySelected && isAdjacent && grid[cell.r][cell.c] === currentSelectionValue) {
                     selectedPath.push(cell);
@@ -772,64 +811,49 @@
                 if (!isSelecting) return;
                 isSelecting = false;
                 ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
-
                 if (selectedPath.length >= 3) {
                     isMoving = true;
-                    
                     const power = Math.floor((selectedPath.length - 1) / 2);
                     const newValue = currentSelectionValue * Math.pow(2, power);
-                    
+                    playMergeSound(newValue);
                     const mergeTargetCell = selectedPath[selectedPath.length - 1];
                     const mergeTargetEl = document.getElementById(`tile-${mergeTargetCell.r}-${mergeTargetCell.c}`);
                     let mergeScore = 0;
-
                     const animations = [];
                     for (const cell of selectedPath) {
                         mergeScore += grid[cell.r][cell.c];
                         const tileEl = document.getElementById(`tile-${cell.r}-${cell.c}`);
-                        
                         if (tileEl && tileEl !== mergeTargetEl) {
                             grid[cell.r][cell.c] = 0;
                             tileEl.style.left = mergeTargetEl.style.left;
                             tileEl.style.top = mergeTargetEl.style.top;
-                            
                             animations.push(new Promise(resolve => setTimeout(() => {
-                                tileEl.remove();
-                                resolve();
+                                tileEl.remove(); resolve();
                             }, 300)));
                         }
                     }
-                    
                     await Promise.all(animations);
-
                     grid[mergeTargetCell.r][mergeTargetCell.c] = newValue;
                     if(mergeTargetEl) {
                         mergeTargetEl.className = `tile merged ${TILE_COLORS[newValue] || 'bg-gray-800'}`;
                         mergeTargetEl.textContent = newValue;
                         mergeTargetEl.classList.remove('selected');
                     }
-                    
                     updateScore(mergeScore, true);
-                    if (newValue > stats.maxTile) stats.maxTile = newValue;
-                    saveStats();
-
+                    if (newValue > appData.stats.maxTile) appData.stats.maxTile = newValue;
+                    saveData();
                     await new Promise(resolve => setTimeout(resolve, 300));
                     if(mergeTargetEl) mergeTargetEl.classList.remove('merged');
-
                     await applyGravityAndRefillAnimated();
-                    
                     if (!isAnyMovePossible()) handleGameOver();
                 } else {
                      clearSelectionUI();
                 }
-                
                 selectedPath = [];
                 currentSelectionValue = 0;
             }
 
-            function clearSelectionUI() {
-                document.querySelectorAll('.tile.selected').forEach(t => t.classList.remove('selected'));
-            }
+            function clearSelectionUI() { document.querySelectorAll('.tile.selected').forEach(t => t.classList.remove('selected')); }
             
             function getTileCenter(r, c) {
                 const { cellWidth, cellHeight, gap } = getGridMetrics();
@@ -841,11 +865,9 @@
             function drawLinePath() {
                 ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
                 if (selectedPath.length < 2) return;
-                
                 ctx.beginPath();
                 const startPoint = getTileCenter(selectedPath[0].r, selectedPath[0].c);
                 ctx.moveTo(startPoint.x, startPoint.y);
-
                 for (let i = 1; i < selectedPath.length; i++) {
                     const point = getTileCenter(selectedPath[i].r, selectedPath[i].c);
                     ctx.lineTo(point.x, point.y);
@@ -857,35 +879,66 @@
                 ctx.stroke();
             }
 
-            // --- Persistence (Theme & Stats) ---
-
-            function toggleTheme() {
-                const html = document.documentElement;
-                html.classList.toggle('dark');
-                localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+            // --- Sounds ---
+            function playMergeSound(value) {
+                if(!audioContextStarted) return;
+                const baseNote = 110;
+                const note = baseNote * Math.pow(2, (Math.log2(value / 2) + 4) / 12);
+                mergeSynth.triggerAttackRelease(note, '8n', Tone.now());
+                mergeSynth.triggerAttackRelease(note * 1.5, '8n', Tone.now() + 0.05);
             }
 
-            function loadTheme() {
-                const savedTheme = localStorage.getItem('theme') || 'light';
-                if (savedTheme === 'dark') {
-                    document.documentElement.classList.add('dark');
-                    themeToggle.checked = true;
-                } else {
-                    document.documentElement.classList.remove('dark');
-                    themeToggle.checked = false;
+            function playClickSound() {
+                if(!audioContextStarted) return;
+                clickSynth.triggerAttackRelease('C5', '16n');
+            }
+
+            // --- Settings & Persistence ---
+            function applySettings() {
+                // Theme
+                document.documentElement.classList.toggle('dark', appData.theme === 'dark');
+                themeToggle.checked = appData.theme === 'dark';
+                // Volumes
+                musicVolumeSlider.value = appData.musicVolume;
+                sfxVolumeSlider.value = appData.sfxVolume;
+                bgMusic.volume = appData.musicVolume / 100;
+                const gain = appData.sfxVolume > 0 ? Tone.gainToDb((appData.sfxVolume / 100) * 0.7) : -Infinity;
+                Tone.Destination.volume.value = gain;
+            }
+
+            async function saveData() {
+                if (!vkUserId) return;
+                const storageKey = `mergemaster_data_${vkUserId}`;
+                try {
+                    await vkBridge.send('VKWebAppStorageSet', { key: storageKey, value: JSON.stringify(appData) });
+                } catch (error) {
+                    localStorage.setItem(storageKey, JSON.stringify(appData));
                 }
             }
 
-            function saveStats() { localStorage.setItem('gameStats', JSON.stringify(stats)); }
-
-            function loadStats() {
-                const savedStats = localStorage.getItem('gameStats');
-                if (savedStats) stats = JSON.parse(savedStats);
+            async function loadData() {
+                if (!vkUserId) return;
+                const storageKey = `mergemaster_data_${vkUserId}`;
+                let loadedData = null;
+                try {
+                    const response = await vkBridge.send('VKWebAppStorageGet', { keys: [storageKey] });
+                    if (response.keys[0]?.value) loadedData = JSON.parse(response.keys[0].value);
+                } catch (error) {
+                    const localData = localStorage.getItem(storageKey);
+                    if (localData) loadedData = JSON.parse(localData);
+                }
+                if (loadedData) {
+                    // Merge loaded data with defaults to prevent errors if structure changes
+                    appData = { ...appData, ...loadedData };
+                    appData.stats = { ...{ highScore: 0, maxTile: 0 }, ...loadedData.stats };
+                }
+                updateStatsUI();
             }
             
             function updateStatsUI() {
-                document.getElementById('stats-high-score').textContent = stats.highScore;
-                document.getElementById('stats-max-tile').textContent = stats.maxTile;
+                highScoreEl.textContent = appData.stats.highScore;
+                document.getElementById('stats-high-score').textContent = appData.stats.highScore;
+                document.getElementById('stats-max-tile').textContent = appData.stats.maxTile;
             }
 
             // --- Start the engine ---
