@@ -486,6 +486,7 @@
                 applySettings();
                 updateScore(0);
                 addEventListeners();
+                renderOtherGames();
                 
                 if (appData.savedGame && appData.savedGame.grid) {
                     document.getElementById('continue-modal').classList.add('active');
@@ -495,10 +496,12 @@
             }
             
             function setupAudio() {
-                 mergeSynth = new Tone.PolySynth(Tone.Synth, {
-                    oscillator: { type: 'fmsine', modulationIndex: 2, harmonicity: 0.5 },
-                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 }
+                 mergeSynth = new Tone.PolySynth(Tone.AMSynth, {
+                    harmonicity: 1.5,
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 },
+                    modulationEnvelope: { attack: 0.05, decay: 0.2, sustain: 0.1, release: 0.2 }
                 }).toDestination();
+
                 clickSynth = new Tone.Synth({
                     oscillator: { type: 'triangle' },
                     envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
@@ -510,7 +513,6 @@
                 try {
                     await Tone.start();
                     audioContextStarted = true;
-                    console.log('Audio context started.');
                     if (appData.musicEnabled) {
                         bgMusic.play().catch(e => console.log("Music play failed:", e));
                     }
@@ -645,6 +647,33 @@
                 lineCanvas.height = gridRect.height;
                 lineCanvas.style.top = `${gridRect.top - containerRect.top}px`;
                 lineCanvas.style.left = `${gridRect.left - containerRect.left}px`;
+            }
+
+            function renderOtherGames() {
+                const otherGamesContainer = document.getElementById('other-games-container');
+                otherGamesContainer.innerHTML = '';
+                const games = [
+                    { name: 'Bubble Shooter', appId: 54051411, icon: 'https://placehold.co/80x80/60a5fa/ffffff?text=B' }, 
+                    { name: 'Тетрис', appId: 54051413, icon: 'https://placehold.co/80x80/818cf8/ffffff?text=T' },
+                    { name: 'Tower Blocks', appId: 53962513, icon: 'https://placehold.co/80x80/c084fc/ffffff?text=TB' }, 
+                    { name: 'Блок Про', appId: 53936296, icon: 'https://placehold.co/80x80/f472b6/ffffff?text=БП' },
+                    { name: 'Филворды', appId: 53867134, icon: 'https://placehold.co/80x80/fb7185/ffffff?text=Ф' }, 
+                    { name: 'Словли', appId: 53861990, icon: 'https://placehold.co/80x80/f97316/ffffff?text=С' },
+                    { name: 'Brick Balls', appId: 54023580, icon: 'https://placehold.co/80x80/facc15/ffffff?text=BB' }, 
+                    { name: '2048', appId: 53965380, icon: 'https://placehold.co/80x80/a3e635/ffffff?text=2K' },
+                    { name: 'Math Matrix', appId: 53970659, icon: 'https://placehold.co/80x80/4ade80/ffffff?text=M' }
+                ];
+                games.forEach(game => {
+                    const gameEl = document.createElement('div');
+                    gameEl.className = "flex flex-col items-center cursor-pointer group";
+                    gameEl.dataset.appId = game.appId;
+                    gameEl.innerHTML = `
+                        <div class="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-3xl mb-2 flex items-center justify-center group-hover:scale-105 transition-transform overflow-hidden">
+                           <img src="${game.icon}" alt="${game.name}" class="w-full h-full object-cover">
+                        </div>
+                        <span class="text-xs font-medium text-center">${game.name}</span>`;
+                    otherGamesContainer.appendChild(gameEl);
+                });
             }
 
             // --- Game Logic ---
@@ -862,20 +891,34 @@
 
             async function handleSelectionEnd() {
                 if (!isSelecting) return;
+
+                const pathForMerge = [...selectedPath];
+
                 isSelecting = false;
                 ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
-                if (selectedPath.length >= 3) {
+                selectedPath = [];
+                currentSelectionValue = 0;
+                updateNextTilePreview();
+                clearSelectionUI();
+
+                if (pathForMerge.length >= 3) {
                     isMoving = true;
-                    const power = Math.min(MAX_MERGE_POWER, Math.floor((selectedPath.length - 1) / 2));
-                    const newValue = currentSelectionValue * Math.pow(2, power);
+                    
+                    const baseValue = grid[pathForMerge[0].r][pathForMerge[0].c];
+                    const power = Math.min(MAX_MERGE_POWER, Math.floor((pathForMerge.length - 1) / 2));
+                    const newValue = baseValue * Math.pow(2, power);
                     playMergeSound(newValue);
-                    const mergeTargetCell = selectedPath[selectedPath.length - 1];
+
+                    const mergeTargetCell = pathForMerge[pathForMerge.length - 1];
                     const mergeTargetEl = document.getElementById(`tile-${mergeTargetCell.r}-${mergeTargetCell.c}`);
+                    
+                    if (!mergeTargetEl) { isMoving = false; return; }
+
                     let mergeScore = 0;
                     const animations = [];
                     const mergeTargetPos = { left: mergeTargetEl.style.left, top: mergeTargetEl.style.top };
 
-                    for (const cell of selectedPath) {
+                    for (const cell of pathForMerge) {
                         mergeScore += grid[cell.r][cell.c];
                         const tileEl = document.getElementById(`tile-${cell.r}-${cell.c}`);
                         if (tileEl && tileEl !== mergeTargetEl) {
@@ -886,36 +929,32 @@
                             tileEl.style.transform = 'scale(0.5)';
                             tileEl.style.zIndex = '1';
                             animations.push(new Promise(resolve => setTimeout(() => {
-                                tileEl.remove(); resolve();
+                                if (tileEl) tileEl.remove(); resolve();
                             }, 150)));
                         }
                     }
                     await Promise.all(animations);
+                    
                     grid[mergeTargetCell.r][mergeTargetCell.c] = newValue;
-                    if(mergeTargetEl) {
-                        mergeTargetEl.className = `tile merged ${TILE_COLORS[newValue] || 'bg-gray-800'}`;
-                        mergeTargetEl.textContent = newValue;
-                        mergeTargetEl.classList.remove('selected');
-                    }
+                    mergeTargetEl.className = `tile merged ${TILE_COLORS[newValue] || 'bg-gray-800'}`;
+                    mergeTargetEl.textContent = newValue;
+                    
                     updateScore(mergeScore, true);
                     if (newValue > appData.stats.maxTile) {
                         appData.stats.maxTile = newValue;
                         updateStatsUI();
                     }
                     
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    mergeTargetEl.classList.remove('merged');
+                    
+                    await applyGravityAndRefillAnimated();
+
                     appData.savedGame = { grid: grid, score: currentScore };
                     await saveData();
 
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                    if(mergeTargetEl) mergeTargetEl.classList.remove('merged');
-                    await applyGravityAndRefillAnimated();
                     if (!isAnyMovePossible()) handleGameOver();
-                } else {
-                     clearSelectionUI();
                 }
-                selectedPath = [];
-                currentSelectionValue = 0;
-                updateNextTilePreview();
             }
 
             function clearSelectionUI() { document.querySelectorAll('.tile.selected').forEach(t => t.classList.remove('selected')); }
@@ -963,10 +1002,9 @@
             // --- Sounds ---
             function playMergeSound(value) {
                 if(!audioContextStarted) return;
-                const baseNote = 110;
-                const note = baseNote * Math.pow(2, (Math.log2(value / 2) + 4) / 12);
-                mergeSynth.triggerAttackRelease(note, '8n', Tone.now());
-                mergeSynth.triggerAttackRelease(note * 1.5, '8n', Tone.now() + 0.05);
+                const baseNote = 110; // A2
+                const note = baseNote * Math.pow(2, (Math.log2(value / 2)) / 12 + 1);
+                mergeSynth.triggerAttackRelease(note, '8n');
             }
 
             function playClickSound() {
