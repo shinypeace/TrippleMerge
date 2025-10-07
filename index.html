@@ -58,7 +58,6 @@
         .game-container {
             width: 100%;
             height: 100vh;
-            height: calc(var(--vh, 1vh) * 100);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -76,7 +75,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, height 0.3s ease, padding-bottom 0.3s ease;
         }
         
         .screen {
@@ -262,7 +261,7 @@
                          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
                     </button>
                     <button id="settings-btn-main" class="icon-btn" aria-label="Настройки">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     </button>
                 </div>
             </div>
@@ -270,16 +269,15 @@
             <!-- Game Screen -->
             <div id="game-screen" class="screen p-4 flex-col hidden">
                 <div class="flex justify-between items-center p-4">
-                    <div class="text-center bg-[var(--cell-bg)] p-2 px-4 rounded-xl w-1/3">
+                    <div class="w-1/3 text-center bg-[var(--cell-bg)] p-2 px-4 rounded-xl">
                         <div class="text-xs font-bold uppercase" style="color: var(--text-secondary)">Счет</div>
                         <div id="current-score" class="text-2xl font-bold">0</div>
                     </div>
                      <button id="pause-btn" class="icon-btn" aria-label="Пауза">
                         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
                     </button>
-                    <div class="text-center bg-[var(--cell-bg)] p-2 px-4 rounded-xl w-1/3">
-                        <div class="text-xs font-bold uppercase" style="color: var(--text-secondary)">СЛЕДУЮЩИЙ</div>
-                        <div id="next-tile-preview" class="w-10 h-10 mx-auto mt-1 rounded-md bg-gray-400 dark:bg-gray-600 flex items-center justify-center font-bold text-white text-lg transition-colors"></div>
+                    <div class="w-1/3 flex justify-center items-center">
+                        <div id="next-tile-preview" class="w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white text-xl transition-colors" style="background-color: var(--cell-bg);"></div>
                     </div>
                 </div>
                 <div id="game-grid-container" class="w-full flex-grow p-1 flex items-center justify-center">
@@ -354,7 +352,7 @@
                 <div class="space-y-3">
                     <p>● Соединяйте <strong>3+</strong> одинаковых числа.</p>
                     <p>● Длинные цепочки дают плитки большего номинала.</p>
-                    <p>● Цепочка ограничена, чтобы получить плитку не более чем на <strong>6</strong> порядков выше (например, из 2 → 128).</p>
+                    <p>● Результат слияния ограничен: плитка не может стать больше чем на <strong>6</strong> порядков (например, из 2 → 128).</p>
                 </div>
                 <button id="close-rules-btn" class="btn btn-secondary w-full text-lg mt-6">Понятно</button>
             </div>
@@ -389,52 +387,37 @@
             const ROWS = 6;
             const COLS = 5;
             const MAX_MERGE_POWER = 6; // Max merge is current * 2^6
-            const MAX_PATH_LENGTH = 2 * MAX_MERGE_POWER + 2; // = 14
 
             const screens = {
                 mainMenu: document.getElementById('main-menu'),
                 game: document.getElementById('game-screen'),
                 otherGames: document.getElementById('other-games-screen')
             };
+            const gameWrapper = document.querySelector('.game-wrapper');
             const gameGrid = document.getElementById('game-grid');
             const lineCanvas = document.getElementById('line-canvas');
             const ctx = lineCanvas.getContext('2d');
             const currentScoreEl = document.getElementById('current-score');
-            const highScoreEl = document.getElementById('stats-high-score'); // High score now in stats
+            const highScoreEl = document.getElementById('stats-high-score');
             const nextTilePreviewEl = document.getElementById('next-tile-preview');
             const bgMusic = document.getElementById('bg-music');
-            const otherGamesContainer = document.getElementById('other-games-container');
-            const allButtons = document.querySelectorAll('button');
             
             // Modals & Buttons
-            const pauseModal = document.getElementById('pause-modal');
-            const gameOverModal = document.getElementById('game-over-modal');
-            const settingsModal = document.getElementById('settings-modal');
-            const rulesModal = document.getElementById('rules-modal');
-            const statsModal = document.getElementById('stats-modal');
-            const continueModal = document.getElementById('continue-modal');
-            const finalScoreEl = document.getElementById('final-score');
             const playBtn = document.getElementById('play-btn');
+            const otherGamesBtn = document.getElementById('other-games-btn');
+            const continueGameBtn = document.getElementById('continue-game-btn');
+            const newGameConfirmBtn = document.getElementById('new-game-confirm-btn');
+            const allButtons = document.querySelectorAll('button');
+            const themeToggle = document.getElementById('theme-toggle');
+            const musicToggle = document.getElementById('music-toggle');
+            const sfxVolumeSlider = document.getElementById('sfx-volume');
             const pauseBtn = document.getElementById('pause-btn');
             const resumeBtn = document.getElementById('resume-btn');
             const restartBtnPause = document.getElementById('restart-btn-pause');
             const mainMenuBtnPause = document.getElementById('main-menu-btn-pause');
             const restartBtnGameOver = document.getElementById('restart-btn-gameover');
             const mainMenuBtnGameOver = document.getElementById('main-menu-btn-gameover');
-            const settingsBtnMain = document.getElementById('settings-btn-main');
-            const closeSettingsBtn = document.getElementById('close-settings-btn');
-            const rulesBtnMain = document.getElementById('rules-btn-main');
-            const closeRulesBtn = document.getElementById('close-rules-btn');
-            const statsBtnMain = document.getElementById('stats-btn-main');
-            const closeStatsBtn = document.getElementById('close-stats-btn');
-            const themeToggle = document.getElementById('theme-toggle');
-            const musicToggle = document.getElementById('music-toggle');
-            const sfxVolumeSlider = document.getElementById('sfx-volume');
-            const otherGamesBtn = document.getElementById('other-games-btn');
-            const backToMenuBtn = document.getElementById('back-to-menu-btn');
-            const continueGameBtn = document.getElementById('continue-game-btn');
-            const newGameConfirmBtn = document.getElementById('new-game-confirm-btn');
-
+            
             // Game State
             let grid = [];
             let currentScore = 0;
@@ -470,9 +453,6 @@
             // --- Game Initialization ---
             
             async function init() {
-                let vh = window.innerHeight * 0.01;
-                document.documentElement.style.setProperty('--vh', `${vh}px`);
-                
                 vkBridge.send('VKWebAppInit');
                 
                 vkBridge.subscribe(e => {
@@ -487,6 +467,9 @@
                            bgMusic.play().catch(e => {});
                         }
                         wasMusicPlaying = false;
+                    }
+                    if (e.detail.type === 'VKWebAppUpdateConfig') {
+                        updateGameHeight(e.detail.data.safe_area_insets);
                     }
                 });
 
@@ -503,10 +486,9 @@
                 applySettings();
                 updateScore(0);
                 addEventListeners();
-                renderOtherGames();
                 
                 if (appData.savedGame && appData.savedGame.grid) {
-                    continueModal.classList.add('active');
+                    document.getElementById('continue-modal').classList.add('active');
                 } else {
                     showScreen('mainMenu');
                 }
@@ -521,6 +503,20 @@
                     oscillator: { type: 'triangle' },
                     envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
                 }).toDestination();
+            }
+            
+            async function initAudio() {
+                if (audioContextStarted) return;
+                try {
+                    await Tone.start();
+                    audioContextStarted = true;
+                    console.log('Audio context started.');
+                    if (appData.musicEnabled) {
+                        bgMusic.play().catch(e => console.log("Music play failed:", e));
+                    }
+                } catch(e) {
+                    console.error("Could not start audio context:", e);
+                }
             }
 
             function startGame() {
@@ -552,14 +548,12 @@
 
             function resumeSavedGame() {
                 if (!appData.savedGame || !appData.savedGame.grid) return;
-
                 showScreen('game');
                 grid = appData.savedGame.grid;
                 updateScore(appData.savedGame.score, false);
                 isGameOver = false;
-
-                renderGrid(true); // Render instantly
-                appData.savedGame = null; // Clear after loading
+                renderGrid(true);
+                appData.savedGame = null;
                 saveData();
                 setTimeout(resizeCanvas, 100);
             }
@@ -567,7 +561,25 @@
             function showScreen(screenName) {
                 Object.values(screens).forEach(s => s.classList.add('hidden'));
                 screens[screenName].classList.remove('hidden');
-                vkBridge.send('VKWebAppShowBannerAd', { banner_location: 'bottom' }).catch(e => {});
+                
+                vkBridge.send('VKWebAppShowBannerAd', { banner_location: 'bottom' })
+                  .then(() => {
+                      vkBridge.send('VKWebAppGetClientConfig').then(config => {
+                          if (config.safe_area_insets) {
+                               updateGameHeight(config.safe_area_insets);
+                          }
+                      });
+                  })
+                  .catch(e => {});
+            }
+
+            function updateGameHeight(safeArea) {
+                if (safeArea && safeArea.bottom > 0) {
+                    gameWrapper.style.height = `calc(100% - ${safeArea.bottom}px)`;
+                } else {
+                    gameWrapper.style.height = '100%';
+                }
+                setTimeout(resizeCanvas, 350); // wait for css transition
             }
 
             // --- UI & Rendering ---
@@ -592,16 +604,26 @@
                 tile.style.height = `${cellHeight}px`;
                 tile.style.left = `${c * (cellWidth + gap)}px`;
                 
-                if (isNew) tile.style.top = `-${cellHeight}px`;
-                else tile.style.top = `${r * (cellHeight + gap)}px`;
-                if (isInitial) tile.style.transform = 'scale(0)';
+                if (isNew) {
+                    tile.style.top = `-${cellHeight}px`;
+                } else {
+                    tile.style.top = `${r * (cellHeight + gap)}px`;
+                }
+
+                if (isInitial) {
+                    tile.style.transform = 'scale(0)';
+                }
+                
                 gameGrid.appendChild(tile);
+
                 requestAnimationFrame(() => {
+                    tile.style.transition = 'transform 0.2s, top 0.3s, left 0.3s';
                     if (isInitial) {
-                        tile.style.transition = 'transform 0.2s';
                         tile.style.transform = 'scale(1)';
                     }
-                     if (isNew) tile.style.top = `${r * (cellHeight + gap)}px`;
+                     if (isNew) {
+                        tile.style.top = `${r * (cellHeight + gap)}px`;
+                     }
                 });
             }
 
@@ -618,34 +640,12 @@
             function resizeCanvas() {
                 const gridRect = gameGrid.getBoundingClientRect();
                 const containerRect = gameGrid.parentElement.getBoundingClientRect();
+                if(gridRect.width === 0) return;
                 lineCanvas.width = gridRect.width;
                 lineCanvas.height = gridRect.height;
                 lineCanvas.style.top = `${gridRect.top - containerRect.top}px`;
                 lineCanvas.style.left = `${gridRect.left - containerRect.left}px`;
             }
-            
-            function renderOtherGames() {
-                otherGamesContainer.innerHTML = '';
-                const games = [
-                    { name: 'Bubble Shooter', appId: 54051411, icon: 'icon1.png' }, { name: 'Тетрис', appId: 54051413, icon: 'icon2.png' },
-                    { name: 'Tower Blocks', appId: 53962513, icon: 'icon3.png' }, { name: 'Блок Про', appId: 53936296, icon: 'icon4.png' },
-                    { name: 'Филворды', appId: 53867134, icon: 'icon5.png' }, { name: 'Словли', appId: 53861990, icon: 'icon6.png' },
-                    { name: 'Brick Balls', appId: 54023580, icon: 'icon7.png' }, { name: '2048', appId: 53965380, icon: 'icon8.png' },
-                    { name: 'Math Matrix', appId: 53970659, icon: 'icon9.png' }
-                ];
-                games.forEach(game => {
-                    const gameEl = document.createElement('div');
-                    gameEl.className = "flex flex-col items-center cursor-pointer group";
-                    gameEl.dataset.appId = game.appId;
-                    gameEl.innerHTML = `
-                        <div class="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-3xl mb-2 flex items-center justify-center group-hover:scale-105 transition-transform overflow-hidden">
-                           <img src="${game.icon}" alt="${game.name}" class="w-full h-full object-cover">
-                        </div>
-                        <span class="text-xs font-medium text-center">${game.name}</span>`;
-                    otherGamesContainer.appendChild(gameEl);
-                });
-            }
-
 
             // --- Game Logic ---
 
@@ -744,58 +744,52 @@
                 saveData();
                 vkBridge.send('VKWebAppShowInterstitialAd').catch(e => {});
                 setTimeout(() => {
-                    finalScoreEl.textContent = currentScore;
-                    gameOverModal.classList.add('active');
+                    document.getElementById('final-score').textContent = currentScore;
+                    document.getElementById('game-over-modal').classList.add('active');
                 }, 500);
             }
 
             // --- Event Handlers & Controls ---
 
             function addEventListeners() {
-                playBtn.addEventListener('click', () => { playClickSound(); startGame(); });
+                playBtn.addEventListener('click', () => { initAudio(); playClickSound(); startGame(); });
                 allButtons.forEach(btn => btn.addEventListener('click', playClickSound));
-                document.body.addEventListener('click', async () => {
-                    if (!audioContextStarted) {
-                        await Tone.start();
-                         if (appData.musicEnabled) bgMusic.play().catch(e => console.log("Music play failed:", e));
-                        audioContextStarted = true;
-                    }
-                }, { once: true });
-                statsBtnMain.addEventListener('click', () => { updateStatsUI(); statsModal.classList.add('active'); });
-                rulesBtnMain.addEventListener('click', () => rulesModal.classList.add('active'));
-                settingsBtnMain.addEventListener('click', () => settingsModal.classList.add('active'));
-                otherGamesBtn.addEventListener('click', () => showScreen('otherGames'));
-                backToMenuBtn.addEventListener('click', () => showScreen('mainMenu'));
-                otherGamesContainer.addEventListener('click', e => {
+                
+                document.getElementById('stats-btn-main').addEventListener('click', () => { updateStatsUI(); document.getElementById('stats-modal').classList.add('active'); });
+                document.getElementById('rules-btn-main').addEventListener('click', () => document.getElementById('rules-modal').classList.add('active'));
+                document.getElementById('settings-btn-main').addEventListener('click', () => document.getElementById('settings-modal').classList.add('active'));
+                otherGamesBtn.addEventListener('click', () => { initAudio(); showScreen('otherGames'); });
+                document.getElementById('back-to-menu-btn').addEventListener('click', () => showScreen('mainMenu'));
+                document.getElementById('other-games-container').addEventListener('click', e => {
                     const gameEl = e.target.closest('[data-app-id]');
                     if (gameEl) vkBridge.send('VKWebAppOpenApp', { app_id: parseInt(gameEl.dataset.appId) });
                 });
-                resumeBtn.addEventListener('click', () => { isPaused = false; pauseModal.classList.remove('active'); });
+                resumeBtn.addEventListener('click', () => { isPaused = false; document.getElementById('pause-modal').classList.remove('active'); });
                 [restartBtnPause, restartBtnGameOver].forEach(btn => btn.addEventListener('click', () => {
-                    pauseModal.classList.remove('active');
-                    gameOverModal.classList.remove('active');
+                    document.getElementById('pause-modal').classList.remove('active');
+                    document.getElementById('game-over-modal').classList.remove('active');
                     isPaused = false;
                     startGame();
                 }));
                 [mainMenuBtnPause, mainMenuBtnGameOver].forEach(btn => btn.addEventListener('click', () => {
-                    pauseModal.classList.remove('active');
-                    gameOverModal.classList.remove('active');
+                    document.getElementById('pause-modal').classList.remove('active');
+                    document.getElementById('game-over-modal').classList.remove('active');
                     isPaused = false;
-                    appData.savedGame = null; // Clear saved game when returning to menu
+                    appData.savedGame = null;
                     saveData();
                     showScreen('mainMenu');
                 }));
-                continueGameBtn.addEventListener('click', () => { continueModal.classList.remove('active'); resumeSavedGame(); });
+                continueGameBtn.addEventListener('click', () => { initAudio(); document.getElementById('continue-modal').classList.remove('active'); resumeSavedGame(); });
                 newGameConfirmBtn.addEventListener('click', () => {
-                    continueModal.classList.remove('active');
+                    document.getElementById('continue-modal').classList.remove('active');
                     appData.savedGame = null;
                     saveData();
                     showScreen('mainMenu');
                 });
-                closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
-                closeRulesBtn.addEventListener('click', () => rulesModal.classList.remove('active'));
-                closeStatsBtn.addEventListener('click', () => statsModal.classList.remove('active'));
-                pauseBtn.addEventListener('click', () => { if (!isMoving) { isPaused = true; pauseModal.classList.add('active'); }});
+                document.getElementById('close-settings-btn').addEventListener('click', () => document.getElementById('settings-modal').classList.remove('active'));
+                document.getElementById('close-rules-btn').addEventListener('click', () => document.getElementById('rules-modal').classList.remove('active'));
+                document.getElementById('close-stats-btn').addEventListener('click', () => document.getElementById('stats-modal').classList.remove('active'));
+                pauseBtn.addEventListener('click', () => { if (!isMoving) { isPaused = true; document.getElementById('pause-modal').classList.add('active'); }});
                 themeToggle.addEventListener('change', () => {
                     appData.theme = themeToggle.checked ? 'dark' : 'light';
                     applySettings();
@@ -819,11 +813,7 @@
                 gridContainer.addEventListener('touchstart', handleSelectionStart, { passive: false });
                 gridContainer.addEventListener('touchmove', handleSelectionMove, { passive: false });
                 document.addEventListener('touchend', handleSelectionEnd);
-                window.addEventListener('resize', () => {
-                    let vh = window.innerHeight * 0.01;
-                    document.documentElement.style.setProperty('--vh', `${vh}px`);
-                    resizeCanvas();
-                });
+                window.addEventListener('resize', resizeCanvas);
             }
 
             function handleSelectionStart(e) {
@@ -862,7 +852,7 @@
                 const alreadySelected = selectedPath.some(p => p.r === cell.r && p.c === cell.c);
                 const isAdjacent = Math.abs(cell.r - lastCell.r) <= 1 && Math.abs(cell.c - lastCell.c) <= 1;
 
-                if (!alreadySelected && isAdjacent && grid[cell.r][cell.c] === currentSelectionValue && selectedPath.length < MAX_PATH_LENGTH) {
+                if (!alreadySelected && isAdjacent && grid[cell.r][cell.c] === currentSelectionValue) {
                     selectedPath.push(cell);
                     document.getElementById(`tile-${cell.r}-${cell.c}`).classList.add('selected');
                     drawLinePath();
@@ -883,16 +873,21 @@
                     const mergeTargetEl = document.getElementById(`tile-${mergeTargetCell.r}-${mergeTargetCell.c}`);
                     let mergeScore = 0;
                     const animations = [];
+                    const mergeTargetPos = { left: mergeTargetEl.style.left, top: mergeTargetEl.style.top };
+
                     for (const cell of selectedPath) {
                         mergeScore += grid[cell.r][cell.c];
                         const tileEl = document.getElementById(`tile-${cell.r}-${cell.c}`);
                         if (tileEl && tileEl !== mergeTargetEl) {
                             grid[cell.r][cell.c] = 0;
-                            tileEl.style.left = mergeTargetEl.style.left;
-                            tileEl.style.top = mergeTargetEl.style.top;
+                            tileEl.style.transition = 'top 0.15s ease-out, left 0.15s ease-out, transform 0.15s ease-out';
+                            tileEl.style.left = mergeTargetPos.left;
+                            tileEl.style.top = mergeTargetPos.top;
+                            tileEl.style.transform = 'scale(0.5)';
+                            tileEl.style.zIndex = '1';
                             animations.push(new Promise(resolve => setTimeout(() => {
                                 tileEl.remove(); resolve();
-                            }, 300)));
+                            }, 150)));
                         }
                     }
                     await Promise.all(animations);
@@ -952,14 +947,17 @@
             function updateNextTilePreview() {
                 if (selectedPath.length < 3) {
                     nextTilePreviewEl.textContent = '';
-                    nextTilePreviewEl.className = 'w-10 h-10 mx-auto mt-1 rounded-md bg-gray-400 dark:bg-gray-600 flex items-center justify-center font-bold text-white text-lg transition-colors';
+                    nextTilePreviewEl.className = 'w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white text-xl transition-colors';
+                    nextTilePreviewEl.style.backgroundColor = 'var(--cell-bg)';
                     return;
                 }
                 const power = Math.min(MAX_MERGE_POWER, Math.floor((selectedPath.length - 1) / 2));
                 const newValue = currentSelectionValue * Math.pow(2, power);
                 
                 nextTilePreviewEl.textContent = newValue;
-                nextTilePreviewEl.className = `w-10 h-10 mx-auto mt-1 rounded-md flex items-center justify-center font-bold text-white text-lg transition-colors ${TILE_COLORS[newValue] || 'bg-gray-800'}`;
+                const colorClass = TILE_COLORS[newValue] || 'bg-gray-800';
+                nextTilePreviewEl.className = `w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white text-xl transition-colors ${colorClass}`;
+                nextTilePreviewEl.style.backgroundColor = '';
             }
 
             // --- Sounds ---
@@ -978,11 +976,9 @@
 
             // --- Settings & Persistence ---
             function applySettings() {
-                // Theme
                 document.documentElement.classList.toggle('dark', appData.theme === 'dark');
                 themeToggle.checked = appData.theme === 'dark';
                 
-                // Music
                 musicToggle.checked = appData.musicEnabled;
                  if (appData.musicEnabled && audioContextStarted) {
                     bgMusic.play().catch(e => {});
@@ -991,7 +987,6 @@
                 }
                 bgMusic.volume = 0.3;
 
-                // SFX
                 sfxVolumeSlider.value = appData.sfxVolume;
                 const gain = appData.sfxVolume > 0 ? Tone.gainToDb((appData.sfxVolume / 100) * 0.7) : -Infinity;
                 Tone.Destination.volume.value = gain;
@@ -1019,7 +1014,6 @@
                     if (localData) loadedData = JSON.parse(localData);
                 }
                 if (loadedData) {
-                    // Merge loaded data with defaults to prevent errors if structure changes
                     appData = { ...appData, ...loadedData };
                     appData.stats = { ...{ highScore: 0, maxTile: 0 }, ...loadedData.stats };
                 }
@@ -1037,3 +1031,4 @@
     </script>
 </body>
 </html>
+
