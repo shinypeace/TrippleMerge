@@ -278,8 +278,8 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
                     </button>
                     <div class="text-center bg-[var(--cell-bg)] p-2 px-4 rounded-xl w-1/3">
-                        <div class="text-xs font-bold uppercase" style="color: var(--text-secondary)">Рекорд</div>
-                        <div id="high-score" class="text-2xl font-bold">0</div>
+                        <div class="text-xs font-bold uppercase" style="color: var(--text-secondary)">СЛЕДУЮЩИЙ</div>
+                        <div id="next-tile-preview" class="w-10 h-10 mx-auto mt-1 rounded-md bg-gray-400 dark:bg-gray-600 flex items-center justify-center font-bold text-white text-lg transition-colors"></div>
                     </div>
                 </div>
                 <div id="game-grid-container" class="w-full flex-grow p-1 flex items-center justify-center">
@@ -300,7 +300,7 @@
 
     <!-- Modals -->
     <div id="modal-container">
-        <!-- Pause Modal, Game Over, etc. -->
+        <!-- Pause Modal -->
         <div id="pause-modal" class="modal-overlay">
             <div class="modal-content">
                 <h2 class="text-3xl font-bold mb-6">Пауза</h2>
@@ -311,6 +311,7 @@
                 </div>
             </div>
         </div>
+        <!-- Game Over Modal -->
         <div id="game-over-modal" class="modal-overlay">
             <div class="modal-content">
                 <h2 class="text-3xl font-bold mb-2">Игра окончена!</h2>
@@ -321,6 +322,7 @@
                 </div>
             </div>
         </div>
+        <!-- Settings Modal -->
         <div id="settings-modal" class="modal-overlay">
             <div class="modal-content text-left space-y-4">
                 <h2 class="text-3xl font-bold mb-2 text-center">Настройки</h2>
@@ -333,7 +335,10 @@
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-lg">Музыка</span>
-                    <input type="range" id="music-volume" class="w-1/2" min="0" max="100" value="30">
+                     <label class="switch">
+                        <input type="checkbox" id="music-toggle">
+                        <span class="slider"></span>
+                    </label>
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-lg">Звуки</span>
@@ -342,25 +347,38 @@
                 <button id="close-settings-btn" class="btn btn-secondary w-full text-lg !mt-6">Закрыть</button>
             </div>
         </div>
+        <!-- Rules Modal -->
         <div id="rules-modal" class="modal-overlay">
             <div class="modal-content text-left">
                 <h2 class="text-3xl font-bold mb-6 text-center">Правила игры</h2>
                 <div class="space-y-3">
                     <p>● Соединяйте <strong>3+</strong> одинаковых числа.</p>
                     <p>● Длинные цепочки дают плитки большего номинала.</p>
-                    <p>● Новые плитки падают сверху, заполняя пустые места.</p>
+                    <p>● Цепочка ограничена, чтобы получить плитку не более чем на <strong>6</strong> порядков выше (например, из 2 → 128).</p>
                 </div>
                 <button id="close-rules-btn" class="btn btn-secondary w-full text-lg mt-6">Понятно</button>
             </div>
         </div>
+        <!-- Stats Modal -->
         <div id="stats-modal" class="modal-overlay">
             <div class="modal-content">
                 <h2 class="text-3xl font-bold mb-6">Статистика</h2>
-                <div class="space-y-3 text-left">
+                 <div class="space-y-3 text-left">
                     <div class="flex justify-between p-3 rounded-lg" style="background-color: var(--cell-bg)"><span>Лучший счет</span><strong id="stats-high-score">0</strong></div>
                     <div class="flex justify-between p-3 rounded-lg" style="background-color: var(--cell-bg)"><span>Макс. плитка</span><strong id="stats-max-tile">0</strong></div>
                 </div>
                 <button id="close-stats-btn" class="btn btn-secondary w-full text-lg mt-6">Закрыть</button>
+            </div>
+        </div>
+        <!-- Continue Game Modal -->
+        <div id="continue-modal" class="modal-overlay">
+            <div class="modal-content">
+                <h2 class="text-3xl font-bold mb-6">Продолжить?</h2>
+                <p class="mb-6" style="color: var(--text-secondary)">У вас есть незаконченная игра. Хотите продолжить?</p>
+                <div class="space-y-4">
+                    <button id="continue-game-btn" class="btn btn-primary w-full text-lg">Продолжить</button>
+                    <button id="new-game-confirm-btn" class="btn btn-secondary w-full text-lg">Начать новую</button>
+                </div>
             </div>
         </div>
     </div>
@@ -370,6 +388,9 @@
             // Game Constants & Elements
             const ROWS = 6;
             const COLS = 5;
+            const MAX_MERGE_POWER = 6; // Max merge is current * 2^6
+            const MAX_PATH_LENGTH = 2 * MAX_MERGE_POWER + 2; // = 14
+
             const screens = {
                 mainMenu: document.getElementById('main-menu'),
                 game: document.getElementById('game-screen'),
@@ -379,17 +400,19 @@
             const lineCanvas = document.getElementById('line-canvas');
             const ctx = lineCanvas.getContext('2d');
             const currentScoreEl = document.getElementById('current-score');
-            const highScoreEl = document.getElementById('high-score');
+            const highScoreEl = document.getElementById('stats-high-score'); // High score now in stats
+            const nextTilePreviewEl = document.getElementById('next-tile-preview');
             const bgMusic = document.getElementById('bg-music');
             const otherGamesContainer = document.getElementById('other-games-container');
             const allButtons = document.querySelectorAll('button');
             
-            // Modals & Buttons...
+            // Modals & Buttons
             const pauseModal = document.getElementById('pause-modal');
             const gameOverModal = document.getElementById('game-over-modal');
             const settingsModal = document.getElementById('settings-modal');
             const rulesModal = document.getElementById('rules-modal');
             const statsModal = document.getElementById('stats-modal');
+            const continueModal = document.getElementById('continue-modal');
             const finalScoreEl = document.getElementById('final-score');
             const playBtn = document.getElementById('play-btn');
             const pauseBtn = document.getElementById('pause-btn');
@@ -405,11 +428,12 @@
             const statsBtnMain = document.getElementById('stats-btn-main');
             const closeStatsBtn = document.getElementById('close-stats-btn');
             const themeToggle = document.getElementById('theme-toggle');
-            const musicVolumeSlider = document.getElementById('music-volume');
+            const musicToggle = document.getElementById('music-toggle');
             const sfxVolumeSlider = document.getElementById('sfx-volume');
             const otherGamesBtn = document.getElementById('other-games-btn');
             const backToMenuBtn = document.getElementById('back-to-menu-btn');
-
+            const continueGameBtn = document.getElementById('continue-game-btn');
+            const newGameConfirmBtn = document.getElementById('new-game-confirm-btn');
 
             // Game State
             let grid = [];
@@ -430,9 +454,10 @@
             // App Data
             let appData = {
                 theme: 'light',
-                musicVolume: 30,
+                musicEnabled: true,
                 sfxVolume: 70,
-                stats: { highScore: 0, maxTile: 0 }
+                stats: { highScore: 0, maxTile: 0 },
+                savedGame: null
             };
 
             const TILE_COLORS = {
@@ -458,7 +483,7 @@
                         }
                     }
                     if (e.detail.type === 'VKWebAppViewRestore') {
-                        if (wasMusicPlaying) {
+                        if (wasMusicPlaying && appData.musicEnabled) {
                            bgMusic.play().catch(e => {});
                         }
                         wasMusicPlaying = false;
@@ -479,7 +504,12 @@
                 updateScore(0);
                 addEventListeners();
                 renderOtherGames();
-                showScreen('mainMenu');
+                
+                if (appData.savedGame && appData.savedGame.grid) {
+                    continueModal.classList.add('active');
+                } else {
+                    showScreen('mainMenu');
+                }
             }
             
             function setupAudio() {
@@ -494,6 +524,9 @@
             }
 
             function startGame() {
+                appData.savedGame = null;
+                saveData();
+
                 showScreen('game');
                 grid = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
                 updateScore(0);
@@ -514,6 +547,20 @@
                 }
                 
                 renderGrid(true);
+                setTimeout(resizeCanvas, 100);
+            }
+
+            function resumeSavedGame() {
+                if (!appData.savedGame || !appData.savedGame.grid) return;
+
+                showScreen('game');
+                grid = appData.savedGame.grid;
+                updateScore(appData.savedGame.score, false);
+                isGameOver = false;
+
+                renderGrid(true); // Render instantly
+                appData.savedGame = null; // Clear after loading
+                saveData();
                 setTimeout(resizeCanvas, 100);
             }
 
@@ -564,8 +611,8 @@
                 currentScoreEl.textContent = currentScore;
                 if (currentScore > appData.stats.highScore) {
                     appData.stats.highScore = currentScore;
+                    updateStatsUI();
                 }
-                highScoreEl.textContent = appData.stats.highScore;
             }
             
             function resizeCanvas() {
@@ -693,6 +740,7 @@
 
             function handleGameOver() {
                 isGameOver = true;
+                appData.savedGame = null; // Clear saved game on game over
                 saveData();
                 vkBridge.send('VKWebAppShowInterstitialAd').catch(e => {});
                 setTimeout(() => {
@@ -709,11 +757,11 @@
                 document.body.addEventListener('click', async () => {
                     if (!audioContextStarted) {
                         await Tone.start();
-                        bgMusic.play().catch(e => console.log("Music play failed:", e));
+                         if (appData.musicEnabled) bgMusic.play().catch(e => console.log("Music play failed:", e));
                         audioContextStarted = true;
                     }
                 }, { once: true });
-                statsBtnMain.addEventListener('click', () => { statsModal.classList.add('active'); updateStatsUI(); });
+                statsBtnMain.addEventListener('click', () => { updateStatsUI(); statsModal.classList.add('active'); });
                 rulesBtnMain.addEventListener('click', () => rulesModal.classList.add('active'));
                 settingsBtnMain.addEventListener('click', () => settingsModal.classList.add('active'));
                 otherGamesBtn.addEventListener('click', () => showScreen('otherGames'));
@@ -733,8 +781,17 @@
                     pauseModal.classList.remove('active');
                     gameOverModal.classList.remove('active');
                     isPaused = false;
+                    appData.savedGame = null; // Clear saved game when returning to menu
+                    saveData();
                     showScreen('mainMenu');
                 }));
+                continueGameBtn.addEventListener('click', () => { continueModal.classList.remove('active'); resumeSavedGame(); });
+                newGameConfirmBtn.addEventListener('click', () => {
+                    continueModal.classList.remove('active');
+                    appData.savedGame = null;
+                    saveData();
+                    showScreen('mainMenu');
+                });
                 closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
                 closeRulesBtn.addEventListener('click', () => rulesModal.classList.remove('active'));
                 closeStatsBtn.addEventListener('click', () => statsModal.classList.remove('active'));
@@ -744,8 +801,8 @@
                     applySettings();
                     saveData();
                 });
-                musicVolumeSlider.addEventListener('input', (e) => {
-                    appData.musicVolume = e.target.value;
+                musicToggle.addEventListener('change', () => {
+                    appData.musicEnabled = musicToggle.checked;
                     applySettings();
                     saveData();
                 });
@@ -779,6 +836,7 @@
                     selectedPath.push(cell);
                     document.getElementById(`tile-${cell.r}-${cell.c}`).classList.add('selected');
                     drawLinePath();
+                    updateNextTilePreview();
                 }
             }
             
@@ -789,21 +847,26 @@
                 if (!cell) return;
                 const lastCell = selectedPath[selectedPath.length - 1];
                 if (cell.r === lastCell.r && cell.c === lastCell.c) return;
-                const alreadySelected = selectedPath.some(p => p.r === cell.r && p.c === cell.c);
+
                 if (selectedPath.length > 1) {
                     const secondLast = selectedPath[selectedPath.length - 2];
                     if (cell.r === secondLast.r && cell.c === secondLast.c) {
                         const removed = selectedPath.pop();
                         document.getElementById(`tile-${removed.r}-${removed.c}`).classList.remove('selected');
                         drawLinePath();
+                        updateNextTilePreview();
                         return;
                     }
                 }
+
+                const alreadySelected = selectedPath.some(p => p.r === cell.r && p.c === cell.c);
                 const isAdjacent = Math.abs(cell.r - lastCell.r) <= 1 && Math.abs(cell.c - lastCell.c) <= 1;
-                if (!alreadySelected && isAdjacent && grid[cell.r][cell.c] === currentSelectionValue) {
+
+                if (!alreadySelected && isAdjacent && grid[cell.r][cell.c] === currentSelectionValue && selectedPath.length < MAX_PATH_LENGTH) {
                     selectedPath.push(cell);
                     document.getElementById(`tile-${cell.r}-${cell.c}`).classList.add('selected');
                     drawLinePath();
+                    updateNextTilePreview();
                 }
             }
 
@@ -813,7 +876,7 @@
                 ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
                 if (selectedPath.length >= 3) {
                     isMoving = true;
-                    const power = Math.floor((selectedPath.length - 1) / 2);
+                    const power = Math.min(MAX_MERGE_POWER, Math.floor((selectedPath.length - 1) / 2));
                     const newValue = currentSelectionValue * Math.pow(2, power);
                     playMergeSound(newValue);
                     const mergeTargetCell = selectedPath[selectedPath.length - 1];
@@ -840,8 +903,14 @@
                         mergeTargetEl.classList.remove('selected');
                     }
                     updateScore(mergeScore, true);
-                    if (newValue > appData.stats.maxTile) appData.stats.maxTile = newValue;
-                    saveData();
+                    if (newValue > appData.stats.maxTile) {
+                        appData.stats.maxTile = newValue;
+                        updateStatsUI();
+                    }
+                    
+                    appData.savedGame = { grid: grid, score: currentScore };
+                    await saveData();
+
                     await new Promise(resolve => setTimeout(resolve, 300));
                     if(mergeTargetEl) mergeTargetEl.classList.remove('merged');
                     await applyGravityAndRefillAnimated();
@@ -851,6 +920,7 @@
                 }
                 selectedPath = [];
                 currentSelectionValue = 0;
+                updateNextTilePreview();
             }
 
             function clearSelectionUI() { document.querySelectorAll('.tile.selected').forEach(t => t.classList.remove('selected')); }
@@ -879,6 +949,19 @@
                 ctx.stroke();
             }
 
+            function updateNextTilePreview() {
+                if (selectedPath.length < 3) {
+                    nextTilePreviewEl.textContent = '';
+                    nextTilePreviewEl.className = 'w-10 h-10 mx-auto mt-1 rounded-md bg-gray-400 dark:bg-gray-600 flex items-center justify-center font-bold text-white text-lg transition-colors';
+                    return;
+                }
+                const power = Math.min(MAX_MERGE_POWER, Math.floor((selectedPath.length - 1) / 2));
+                const newValue = currentSelectionValue * Math.pow(2, power);
+                
+                nextTilePreviewEl.textContent = newValue;
+                nextTilePreviewEl.className = `w-10 h-10 mx-auto mt-1 rounded-md flex items-center justify-center font-bold text-white text-lg transition-colors ${TILE_COLORS[newValue] || 'bg-gray-800'}`;
+            }
+
             // --- Sounds ---
             function playMergeSound(value) {
                 if(!audioContextStarted) return;
@@ -898,10 +981,18 @@
                 // Theme
                 document.documentElement.classList.toggle('dark', appData.theme === 'dark');
                 themeToggle.checked = appData.theme === 'dark';
-                // Volumes
-                musicVolumeSlider.value = appData.musicVolume;
+                
+                // Music
+                musicToggle.checked = appData.musicEnabled;
+                 if (appData.musicEnabled && audioContextStarted) {
+                    bgMusic.play().catch(e => {});
+                } else {
+                    bgMusic.pause();
+                }
+                bgMusic.volume = 0.3;
+
+                // SFX
                 sfxVolumeSlider.value = appData.sfxVolume;
-                bgMusic.volume = appData.musicVolume / 100;
                 const gain = appData.sfxVolume > 0 ? Tone.gainToDb((appData.sfxVolume / 100) * 0.7) : -Infinity;
                 Tone.Destination.volume.value = gain;
             }
@@ -937,7 +1028,6 @@
             
             function updateStatsUI() {
                 highScoreEl.textContent = appData.stats.highScore;
-                document.getElementById('stats-high-score').textContent = appData.stats.highScore;
                 document.getElementById('stats-max-tile').textContent = appData.stats.maxTile;
             }
 
@@ -947,4 +1037,3 @@
     </script>
 </body>
 </html>
-
