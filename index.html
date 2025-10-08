@@ -477,7 +477,6 @@
                 });
             }
 
-            // ... The rest of the JS functions: updateScore, resizeCanvas, etc.
             function updateScore(score, isAdding = false) {
                 if (isAdding) currentScore += score; else currentScore = score;
                 currentScoreEl.textContent = currentScore;
@@ -555,9 +554,86 @@
                 }
             }
             
-            async function applyGravityAndRefillAnimated() { /* ... unchanged ... */ }
-            function isAnyMovePossible(g) { /* ... unchanged ... */ return true; }
-            function handleGameOver() { /* ... unchanged ... */ }
+            async function applyGravityAndRefillAnimated() {
+                isMoving = true;
+                const fallDuration = 300;
+                const { cellHeight, gap } = getGridMetrics();
+                for (let c = 0; c < COLS; c++) {
+                    let writeRow = ROWS - 1;
+                    for (let r = ROWS - 1; r >= 0; r--) {
+                        if (grid[r][c] !== 0) {
+                            if (writeRow !== r) {
+                                grid[writeRow][c] = grid[r][c];
+                                grid[r][c] = 0;
+                                const tileEl = document.getElementById(`tile-${r}-${c}`);
+                                if (tileEl) {
+                                    tileEl.style.top = `${writeRow * (cellHeight + gap)}px`;
+                                    tileEl.id = `tile-${writeRow}-${c}`;
+                                }
+                            }
+                            writeRow--;
+                        }
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, fallDuration));
+                const initialValues = [2, 4, 8];
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (grid[r][c] === 0) {
+                            const value = initialValues[Math.floor(Math.random() * initialValues.length)];
+                            grid[r][c] = value;
+                            createTile(r, c, value, false, true);
+                        }
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, fallDuration));
+                isMoving = false;
+            }
+
+            function isAnyMovePossible(g) {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (isMovePossibleFrom(r, c, g)) return true;
+                    }
+                }
+                return false;
+            }
+
+            function isMovePossibleFrom(r, c, g) {
+                const value = g[r][c];
+                if (value === 0) return false;
+                const q = [{r,c}];
+                const visited = new Set([`${r},${c}`]);
+                let count = 0;
+                while(q.length > 0) {
+                    const curr = q.shift();
+                    count++;
+                    if(count >= 3) return true;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            if (dr === 0 && dc === 0) continue;
+                            const nr = curr.r + dr;
+                            const nc = curr.c + dc;
+                            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && g[nr][nc] === value && !visited.has(`${nr},${nc}`)) {
+                                visited.add(`${nr},${nc}`);
+                                q.push({r: nr, c: nc});
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            function handleGameOver() {
+                isGameOver = true;
+                appData.savedGame = null;
+                saveData();
+                vkBridge.send('VKWebAppShowInterstitialAd').catch(e => {});
+                setTimeout(() => {
+                    document.getElementById('final-score').textContent = currentScore;
+                    document.getElementById('game-over-modal').classList.add('active');
+                }, 500);
+            }
 
             // --- Classic Mode Logic ---
             async function checkClassicModeUpgrade(newValue) {
@@ -653,20 +729,31 @@
                 gameGrid.addEventListener('click', handleGridClick);
 
                 // --- Existing Listeners ---
+                const allButtons = document.querySelectorAll('button');
                 allButtons.forEach(btn => btn.addEventListener('click', playClickSound));
-                resumeBtn.onclick = () => { isPaused = false; document.getElementById('pause-modal').classList.remove('active'); };
-                [restartBtnPause, restartBtnGameOver].forEach(btn => btn.onclick = () => {
+                
+                document.getElementById('resume-btn').onclick = () => { isPaused = false; document.getElementById('pause-modal').classList.remove('active'); };
+                
+                [document.getElementById('restart-btn-pause'), document.getElementById('restart-btn-gameover')].forEach(btn => btn.onclick = () => {
                     document.getElementById('pause-modal').classList.remove('active'); document.getElementById('game-over-modal').classList.remove('active');
                     isPaused = false; modeSelectModal.classList.add('active');
                 });
-                mainMenuBtnGameOver.onclick = () => { document.getElementById('game-over-modal').classList.remove('active'); appData.savedGame = null; saveData(); renderMainMenuButtons(); showScreen('mainMenu'); };
+                
+                document.getElementById('main-menu-btn-gameover').onclick = () => { document.getElementById('game-over-modal').classList.remove('active'); appData.savedGame = null; saveData(); renderMainMenuButtons(); showScreen('mainMenu'); };
                 document.getElementById('close-settings-btn').onclick = () => document.getElementById('settings-modal').classList.remove('active');
                 document.getElementById('close-rules-btn').onclick = () => document.getElementById('rules-modal').classList.remove('active');
                 document.getElementById('close-stats-btn').onclick = () => document.getElementById('stats-modal').classList.remove('active');
-                pauseBtn.onclick = () => { if (!isMoving) { isPaused = true; document.getElementById('pause-modal').classList.add('active'); }};
+                document.getElementById('pause-btn').onclick = () => { if (!isMoving) { isPaused = true; document.getElementById('pause-modal').classList.add('active'); }};
+                
+                const themeToggle = document.getElementById('theme-toggle');
                 themeToggle.onchange = () => { appData.theme = themeToggle.checked ? 'dark' : 'light'; applySettings(); saveData(); };
+                
+                const musicToggle = document.getElementById('music-toggle');
                 musicToggle.onchange = () => { appData.musicEnabled = musicToggle.checked; applySettings(); saveData(); };
+                
+                const sfxVolumeSlider = document.getElementById('sfx-volume');
                 sfxVolumeSlider.oninput = (e) => { appData.sfxVolume = e.target.value; applySettings(); saveData(); };
+                
                 const gridContainer = document.getElementById('game-grid-container');
                 gridContainer.addEventListener('mousedown', handleSelectionStart);
                 gridContainer.addEventListener('mousemove', handleSelectionMove);
@@ -678,8 +765,49 @@
                 window.addEventListener('resize', resizeCanvas);
             }
             
-            function handleSelectionStart(e) { /* ... unchanged ... */ }
-            function handleSelectionMove(e) { /* ... unchanged ... */ }
+            function handleSelectionStart(e) {
+                if (isMoving || isGameOver || isPaused || boosterState.mode) return;
+                e.preventDefault();
+                const cell = getCellFromEvent(e);
+                if (cell && grid[cell.r][cell.c] > 0) {
+                    isSelecting = true;
+                    currentSelectionValue = grid[cell.r][cell.c];
+                    selectedPath.push(cell);
+                    document.getElementById(`tile-${cell.r}-${cell.c}`).classList.add('selected');
+                    drawLinePath();
+                    updateNextTilePreview();
+                }
+            }
+
+            function handleSelectionMove(e) {
+                if (!isSelecting || selectedPath.length === 0) return;
+                e.preventDefault();
+                const cell = getCellFromEvent(e);
+                if (!cell) return;
+                const lastCell = selectedPath[selectedPath.length - 1];
+                if (cell.r === lastCell.r && cell.c === lastCell.c) return;
+
+                if (selectedPath.length > 1) {
+                    const secondLast = selectedPath[selectedPath.length - 2];
+                    if (cell.r === secondLast.r && cell.c === secondLast.c) {
+                        const removed = selectedPath.pop();
+                        document.getElementById(`tile-${removed.r}-${removed.c}`)?.classList.remove('selected');
+                        drawLinePath();
+                        updateNextTilePreview();
+                        return;
+                    }
+                }
+
+                const alreadySelected = selectedPath.some(p => p.r === cell.r && p.c === cell.c);
+                const isAdjacent = Math.abs(cell.r - lastCell.r) <= 1 && Math.abs(cell.c - lastCell.c) <= 1;
+
+                if (!alreadySelected && isAdjacent && grid[cell.r][cell.c] === currentSelectionValue) {
+                    selectedPath.push(cell);
+                    document.getElementById(`tile-${cell.r}-${cell.c}`).classList.add('selected');
+                    drawLinePath();
+                    updateNextTilePreview();
+                }
+            }
             
             async function handleSelectionEnd() {
                 if (!isSelecting) return;
@@ -727,9 +855,46 @@
             }
 
             function clearSelectionUI() { document.querySelectorAll('.tile.selected').forEach(t => t.classList.remove('selected')); }
-            function getTileCenter(r, c) { /* ... unchanged ... */ }
-            function drawLinePath() { /* ... unchanged ... */ }
-            function updateNextTilePreview() { /* ... unchanged ... */ }
+            
+            function getTileCenter(r, c) {
+                const { cellWidth, cellHeight, gap } = getGridMetrics();
+                const x = c * (cellWidth + gap) + cellWidth / 2;
+                const y = r * (cellHeight + gap) + cellHeight / 2;
+                return { x, y };
+            }
+
+            function drawLinePath() {
+                ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
+                if (selectedPath.length < 2) return;
+                ctx.beginPath();
+                const startPoint = getTileCenter(selectedPath[0].r, selectedPath[0].c);
+                ctx.moveTo(startPoint.x, startPoint.y);
+                for (let i = 1; i < selectedPath.length; i++) {
+                    const point = getTileCenter(selectedPath[i].r, selectedPath[i].c);
+                    ctx.lineTo(point.x, point.y);
+                }
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 10;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.stroke();
+            }
+
+            function updateNextTilePreview() {
+                if (selectedPath.length < 3) {
+                    nextTilePreviewEl.textContent = '';
+                    nextTilePreviewEl.className = 'w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white text-xl transition-colors';
+                    nextTilePreviewEl.style.backgroundColor = 'var(--cell-bg)';
+                    return;
+                }
+                const power = Math.min(MAX_MERGE_POWER, Math.floor((selectedPath.length - 1) / 2));
+                const newValue = currentSelectionValue * Math.pow(2, power);
+                
+                nextTilePreviewEl.textContent = formatTileValue(newValue);
+                const colorClass = TILE_COLORS[newValue] || 'bg-gray-800';
+                nextTilePreviewEl.className = `w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white text-xl transition-colors ${colorClass}`;
+                nextTilePreviewEl.style.backgroundColor = '';
+            }
 
             // --- Sounds ---
             function playMergeSound(value) { if(!audioContextStarted)return;const n=110,t=n*Math.pow(2,Math.log2(value/2)/12+1);mergeSynth.triggerAttackRelease(t,"8n"); }
@@ -738,11 +903,11 @@
             // --- Settings & Persistence ---
             function applySettings() {
                 document.documentElement.classList.toggle('dark', appData.theme === 'dark');
-                themeToggle.checked = appData.theme === 'dark';
-                musicToggle.checked = appData.musicEnabled;
+                document.getElementById('theme-toggle').checked = appData.theme === 'dark';
+                document.getElementById('music-toggle').checked = appData.musicEnabled;
                 if(appData.musicEnabled && audioContextStarted) bgMusic.play().catch(()=>{}); else bgMusic.pause();
                 bgMusic.volume = 0.3;
-                sfxVolumeSlider.value = appData.sfxVolume;
+                document.getElementById('sfx-volume').value = appData.sfxVolume;
                 Tone.Destination.volume.value = appData.sfxVolume > 0 ? Tone.gainToDb(appData.sfxVolume / 100 * 0.7) : -Infinity;
             }
             async function saveData() { if (!vkUserId) return; const key = `mergemaster_data_${vkUserId}`; try { await vkBridge.send('VKWebAppStorageSet', { key, value: JSON.stringify(appData) }); } catch (e) { localStorage.setItem(key, JSON.stringify(appData)); } }
