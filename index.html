@@ -320,7 +320,7 @@
                 isMoving = false, isSelecting = false, selectedPath = [],
                 currentSelectionValue = 0, vkUserId = null, wasMusicPlaying = false,
                 audioContextStarted = false, mergeSynth, clickSynth,
-                boosterState = { mode: null, firstTile: null, rewardCallback: null };
+                boosterState = { mode: null, firstTile: null };
 
             let appData = {
                 theme: 'dark', musicEnabled: true, sfxVolume: 70,
@@ -354,6 +354,9 @@
                 renderOtherGames();
                 renderMainMenuButtons();
                 showScreen('mainMenu');
+                
+                // BUG FIX 1: Add a one-time event listener to initialize audio on first user interaction.
+                document.body.addEventListener('click', initAudio, { once: true });
             }
             
             function handleVKBridgeEvent(e) {
@@ -363,12 +366,7 @@
                 if (type === 'VKWebAppUpdateConfig') {
                     updateGameHeight(data.safe_area_insets);
                 }
-                if (type === 'VKWebAppShowRewardAdResult') {
-                    if (data.result && boosterState.rewardCallback) {
-                       boosterState.rewardCallback();
-                    }
-                    boosterState.rewardCallback = null;
-                }
+                // BUG FIX 2: Removed obsolete 'VKWebAppShowRewardAdResult' handler.
             }
 
             function setupAudio() {
@@ -379,7 +377,8 @@
             async function initAudio() {
                 if (audioContextStarted) return;
                 try {
-                    await Tone.start(); audioContextStarted = true;
+                    await Tone.start(); 
+                    audioContextStarted = true;
                     if (appData.musicEnabled) bgMusic.play().catch(e => {});
                 } catch(e) {}
             }
@@ -448,16 +447,16 @@
                         <button id="continue-btn" class="btn btn-continue w-full max-w-xs text-2xl py-4">Продолжить</button>
                         <button id="new-game-btn" class="btn btn-primary w-full max-w-xs text-xl py-3">Новая игра</button>
                         <button id="other-games-btn" class="btn btn-secondary w-full max-w-xs text-xl py-3">Другие игры</button>`;
-                    document.getElementById('continue-btn').onclick = () => { initAudio(); resumeSavedGame(); };
-                    document.getElementById('new-game-btn').onclick = () => { initAudio(); newGameConfirmModal.classList.add('active'); };
+                    document.getElementById('continue-btn').onclick = () => { resumeSavedGame(); };
+                    document.getElementById('new-game-btn').onclick = () => { newGameConfirmModal.classList.add('active'); };
                 } else {
                     menuButtonsContainer.innerHTML = `
                         <button class="btn btn-primary w-full max-w-xs text-2xl py-4" data-mode="classic">Классика</button>
                         <button class="btn btn-primary w-full max-w-xs text-xl py-3" data-mode="hard">Хард</button>
                         <button id="other-games-btn" class="btn btn-secondary w-full max-w-xs text-xl py-3">Другие игры</button>`;
-                    menuButtonsContainer.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { initAudio(); startGame(b.dataset.mode); });
+                    menuButtonsContainer.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { startGame(b.dataset.mode); });
                 }
-                document.getElementById('other-games-btn').onclick = () => { initAudio(); showScreen('otherGames'); };
+                document.getElementById('other-games-btn').onclick = () => { showScreen('otherGames'); };
             }
 
             function formatTileValue(value) {
@@ -682,11 +681,6 @@
                 if (!appData.savedGame || appData.savedGame.gameMode !== 'classic' || appData.savedGame.classicThresholdsReached.length === 0) {
                     return [2, 4, 8];
                 }
-                // Logic: What tiles fall is determined by the number of upgrades triggered.
-                // Level 0: [2, 4, 8]. Trigger: 256.
-                // Level 1: [4, 8, 16]. Trigger: 2048.
-                // Level 2: [8, 16, 32]. Trigger: 16384.
-                // The base tile is 2^(level + 1).
                 const level = appData.savedGame.classicThresholdsReached.length;
                 const base = Math.pow(2, level);
                 return [2 * base, 4 * base, 8 * base];
@@ -727,9 +721,7 @@
             }
 
             // --- Booster Logic ---
-            function activateBooster(mode) {
-                initAudio();
-
+            async function activateBooster(mode) {
                 if (boosterState.mode === mode) {
                     finishBooster();
                     return;
@@ -744,21 +736,23 @@
                     }
                     updateBoosterUI();
                 } else {
-                    boosterState.rewardCallback = () => {
-                        appData.savedGame.boosters[mode]++;
-                        saveData();
-                        finishBooster();
-                    };
-                    vkBridge.send('VKWebAppShowRewardAd').catch(e => {
+                    // BUG FIX 2: Replaced deprecated ad call with modern async/await version.
+                    try {
+                        const adData = await vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward' });
+                        if (adData.result === true) {
+                            appData.savedGame.boosters[mode]++;
+                            saveData();
+                            updateBoosterUI();
+                        }
+                    } catch (e) {
                         console.error("VK Reward Ad error", e);
-                        boosterState.rewardCallback = null;
-                    });
+                    }
                 }
             }
 
             function finishBooster() {
                 if(boosterState.firstTile) boosterState.firstTile.el.classList.remove('booster-selected');
-                boosterState = { mode: null, firstTile: null, rewardCallback: null };
+                boosterState = { mode: null, firstTile: null };
                 updateBoosterUI();
             }
 
@@ -778,12 +772,13 @@
 
             // --- Event Handlers & Controls ---
             function addEventListeners() {
-                document.getElementById('stats-btn-main').onclick = () => { initAudio(); updateStatsUI(); document.getElementById('stats-modal').classList.add('active'); };
-                document.getElementById('rules-btn-main').onclick = () => { initAudio(); document.getElementById('rules-modal').classList.add('active'); };
-                document.getElementById('settings-btn-main').onclick = () => { initAudio(); document.getElementById('settings-modal').classList.add('active'); };
+                 // BUG FIX 1: Removed all initAudio() calls from here.
+                document.getElementById('stats-btn-main').onclick = () => { updateStatsUI(); document.getElementById('stats-modal').classList.add('active'); };
+                document.getElementById('rules-btn-main').onclick = () => { document.getElementById('rules-modal').classList.add('active'); };
+                document.getElementById('settings-btn-main').onclick = () => { document.getElementById('settings-modal').classList.add('active'); };
                 document.getElementById('confirm-new-game-btn').onclick = () => { newGameConfirmModal.classList.remove('active'); modeSelectModal.classList.add('active'); };
                 document.getElementById('cancel-new-game-btn').onclick = () => newGameConfirmModal.classList.remove('active');
-                modeSelectModal.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { modeSelectModal.classList.remove('active'); initAudio(); startGame(b.dataset.mode); });
+                modeSelectModal.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { modeSelectModal.classList.remove('active'); startGame(b.dataset.mode); });
                 document.getElementById('cancel-mode-select-btn').onclick = () => modeSelectModal.classList.remove('active');
                 
                 document.getElementById('main-menu-btn-pause').onclick = () => {
@@ -1039,4 +1034,3 @@
     </script>
 </body>
 </html>
-
