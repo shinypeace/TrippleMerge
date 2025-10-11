@@ -232,7 +232,7 @@
                     </div>
                     <button id="pause-btn" class="icon-btn" aria-label="Пауза"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg></button>
                     <div class="w-1/3 flex justify-center items-center">
-                        <div id="next-tile-preview" class="w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white text-xl transition-colors" style="background-color: var(--cell-bg);"></div>
+                        <div id="next-tile-preview" class="w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white text-xl transition-colors" style="background-color: var(--cell-bg); text-shadow: 0 0 4px rgba(0,0,0,0.7);"></div>
                     </div>
                 </div>
                 <div id="game-grid-container" class="w-full flex-grow p-1 flex items-center justify-center">
@@ -429,6 +429,7 @@
             function showScreen(screenName) {
                 Object.values(screens).forEach(s => s.classList.add('hidden'));
                 screens[screenName].classList.remove('hidden');
+                
                 vkBridge.send('VKWebAppShowBannerAd', { banner_location: 'bottom' }).then(() => {
                     vkBridge.send('VKWebAppGetClientConfig').then(c => c.safe_area_insets && updateGameHeight(c.safe_area_insets));
                 }).catch(e => {});
@@ -448,7 +449,7 @@
                         <button id="new-game-btn" class="btn btn-primary w-full max-w-xs text-xl py-3">Новая игра</button>
                         <button id="other-games-btn" class="btn btn-secondary w-full max-w-xs text-xl py-3">Другие игры</button>`;
                     document.getElementById('continue-btn').onclick = () => { initAudio(); resumeSavedGame(); };
-                    document.getElementById('new-game-btn').onclick = () => newGameConfirmModal.classList.add('active');
+                    document.getElementById('new-game-btn').onclick = () => { initAudio(); newGameConfirmModal.classList.add('active'); };
                 } else {
                     menuButtonsContainer.innerHTML = `
                         <button class="btn btn-primary w-full max-w-xs text-2xl py-4" data-mode="classic">Классика</button>
@@ -477,7 +478,7 @@
                 const { cellWidth, cellHeight, gap } = getGridMetrics();
                 const tile = document.createElement('div');
                 tile.id = `tile-${r}-${c}`;
-                tile.className = `tile ${TILE_COLORS[value] || 'bg-gray-800'}`;
+                tile.className = `tile ${TILE_COLORS[value] || TILE_COLORS[value / 1024] || TILE_COLORS[value / (1024*1024)] || 'bg-gray-800'}`;
                 tile.textContent = formatTileValue(value);
                 tile.style.cssText = `width:${cellWidth}px; height:${cellHeight}px; left:${c*(cellWidth+gap)}px; top:${isNew ? -cellHeight : r*(cellHeight+gap)}px;`;
                 if(isInitial) tile.style.transform = 'scale(0)';
@@ -553,12 +554,14 @@
                     if (boosterState.mode === 'swap' && boosterState.firstTile) {
                        boosterState.firstTile.el.classList.remove('booster-selected');
                        boosterState.firstTile = null;
+                       boosterState.mode = null;
                        updateBoosterUI();
                     }
                     return;
                 };
 
                 if (boosterState.mode === 'erase') {
+                    appData.savedGame.boosters.erase--;
                     isMoving = true;
                     grid[cell.r][cell.c] = 0;
                     document.getElementById(`tile-${cell.r}-${cell.c}`)?.remove();
@@ -569,8 +572,8 @@
                     if (!boosterState.firstTile) {
                         boosterState.firstTile = { ...cell, el: tileEl };
                         tileEl.classList.add('booster-selected');
-                        updateBoosterUI();
                     } else if (boosterState.firstTile.r !== cell.r || boosterState.firstTile.c !== cell.c) {
+                        appData.savedGame.boosters.swap--;
                         isMoving = true;
                         const first = boosterState.firstTile, second = { ...cell, el: tileEl };
                         
@@ -679,6 +682,11 @@
                 if (!appData.savedGame || appData.savedGame.gameMode !== 'classic' || appData.savedGame.classicThresholdsReached.length === 0) {
                     return [2, 4, 8];
                 }
+                // Logic: What tiles fall is determined by the number of upgrades triggered.
+                // Level 0: [2, 4, 8]. Trigger: 256.
+                // Level 1: [4, 8, 16]. Trigger: 2048.
+                // Level 2: [8, 16, 32]. Trigger: 16384.
+                // The base tile is 2^(level + 1).
                 const level = appData.savedGame.classicThresholdsReached.length;
                 const base = Math.pow(2, level);
                 return [2 * base, 4 * base, 8 * base];
@@ -721,17 +729,30 @@
             // --- Booster Logic ---
             function activateBooster(mode) {
                 initAudio();
-                const currentBooster = appData.savedGame.boosters[mode];
-                if (currentBooster > 0) {
-                    appData.savedGame.boosters[mode]--;
+
+                if (boosterState.mode === mode) {
+                    finishBooster();
+                    return;
+                }
+
+                const currentBoosterCount = appData.savedGame.boosters[mode];
+                if (currentBoosterCount > 0) {
                     boosterState.mode = mode;
+                    if (boosterState.firstTile) {
+                        boosterState.firstTile.el.classList.remove('booster-selected');
+                        boosterState.firstTile = null;
+                    }
                     updateBoosterUI();
                 } else {
                     boosterState.rewardCallback = () => {
                         appData.savedGame.boosters[mode]++;
-                        finishBooster(); // To re-enable normal UI
+                        saveData();
+                        finishBooster();
                     };
-                    vkBridge.send('VKWebAppShowRewardAd');
+                    vkBridge.send('VKWebAppShowRewardAd').catch(e => {
+                        console.error("VK Reward Ad error", e);
+                        boosterState.rewardCallback = null;
+                    });
                 }
             }
 
@@ -764,9 +785,11 @@
                 document.getElementById('cancel-new-game-btn').onclick = () => newGameConfirmModal.classList.remove('active');
                 modeSelectModal.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { modeSelectModal.classList.remove('active'); initAudio(); startGame(b.dataset.mode); });
                 document.getElementById('cancel-mode-select-btn').onclick = () => modeSelectModal.classList.remove('active');
+                
                 document.getElementById('main-menu-btn-pause').onclick = () => {
                     isPaused = false;
                     document.getElementById('pause-modal').classList.remove('active');
+                    finishBooster();
                     appData.savedGame.score = currentScore;
                     saveData();
                     renderMainMenuButtons();
@@ -785,10 +808,20 @@
                 
                 [document.getElementById('restart-btn-pause'), document.getElementById('restart-btn-gameover')].forEach(btn => btn.onclick = () => {
                     document.getElementById('pause-modal').classList.remove('active'); document.getElementById('game-over-modal').classList.remove('active');
-                    isPaused = false; modeSelectModal.classList.add('active');
+                    isPaused = false;
+                    finishBooster();
+                    modeSelectModal.classList.add('active');
                 });
                 
-                document.getElementById('main-menu-btn-gameover').onclick = () => { document.getElementById('game-over-modal').classList.remove('active'); appData.savedGame = null; saveData(); renderMainMenuButtons(); showScreen('mainMenu'); };
+                document.getElementById('main-menu-btn-gameover').onclick = () => {
+                    document.getElementById('game-over-modal').classList.remove('active');
+                    finishBooster();
+                    appData.savedGame = null;
+                    saveData();
+                    renderMainMenuButtons();
+                    showScreen('mainMenu');
+                };
+
                 document.getElementById('close-settings-btn').onclick = () => document.getElementById('settings-modal').classList.remove('active');
                 document.getElementById('close-rules-btn').onclick = () => document.getElementById('rules-modal').classList.remove('active');
                 document.getElementById('close-stats-btn').onclick = () => document.getElementById('stats-modal').classList.remove('active');
@@ -886,7 +919,7 @@
                     }
                     await Promise.all(animations);
                     grid[mergeTargetCell.r][mergeTargetCell.c] = newValue;
-                    mergeTargetEl.className = `tile merged ${TILE_COLORS[newValue] || 'bg-gray-800'}`;
+                    mergeTargetEl.className = `tile merged ${TILE_COLORS[newValue] || TILE_COLORS[newValue / 1024] || TILE_COLORS[newValue / (1024*1024)] || 'bg-gray-800'}`;
                     mergeTargetEl.textContent = formatTileValue(newValue);
                     updateScore(mergeScore, true);
                     if (appData.savedGame) {
@@ -945,7 +978,7 @@
                 const newValue = currentSelectionValue * Math.pow(2, power);
                 
                 nextTilePreviewEl.textContent = formatTileValue(newValue);
-                const colorClass = TILE_COLORS[newValue] || 'bg-gray-800';
+                const colorClass = TILE_COLORS[newValue] || TILE_COLORS[newValue / 1024] || TILE_COLORS[newValue / (1024*1024)] || 'bg-gray-800';
                 nextTilePreviewEl.className = `w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white text-xl transition-colors ${colorClass}`;
                 nextTilePreviewEl.style.backgroundColor = '';
             }
@@ -959,7 +992,11 @@
                 document.documentElement.classList.toggle('dark', appData.theme === 'dark');
                 document.getElementById('theme-toggle').checked = appData.theme === 'dark';
                 document.getElementById('music-toggle').checked = appData.musicEnabled;
-                if(appData.musicEnabled && audioContextStarted) bgMusic.play().catch(()=>{}); else bgMusic.pause();
+                if(appData.musicEnabled && audioContextStarted) {
+                     bgMusic.play().catch(()=>{});
+                } else {
+                     bgMusic.pause();
+                }
                 bgMusic.volume = 0.3;
                 document.getElementById('sfx-volume').value = appData.sfxVolume;
                 Tone.Destination.volume.value = appData.sfxVolume > 0 ? Tone.gainToDb(appData.sfxVolume / 100 * 0.7) : -Infinity;
