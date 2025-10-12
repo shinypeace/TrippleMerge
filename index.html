@@ -15,7 +15,7 @@
         :root {
             --bg-light: #faf8ef;
             --bg-dark: #111827;
-            --card-bg-light: #f9f6f2;
+            --card-bg-light: #faf8ef; /* Changed for better 2048 feel */
             --card-bg-dark: #1F2937;
             --text-light: #111827;
             --text-dark: #F9FAFB;
@@ -354,6 +354,9 @@
                 renderOtherGames();
                 renderMainMenuButtons();
                 showScreen('mainMenu');
+                
+                // MUSIC FIX: Listen for the first interaction anywhere to start the audio context.
+                document.body.addEventListener('click', initAudio, { once: true });
             }
             
             function handleVKBridgeEvent(e) {
@@ -375,7 +378,8 @@
                 try {
                     await Tone.start(); 
                     audioContextStarted = true;
-                    if (appData.musicEnabled) bgMusic.play().catch(e => {});
+                    // Once context is started, re-apply settings to play music if it was enabled.
+                    applySettings();
                 } catch(e) {}
             }
 
@@ -406,9 +410,9 @@
                 setTimeout(resizeCanvas, 300);
             }
 
-            async function resumeSavedGame() {
+            function resumeSavedGame() {
                 if (!appData.savedGame) return;
-                await initAudio();
+                // MUSIC FIX: No need to call initAudio here anymore.
                 applySettings();
                 loadGameState();
                 showScreen('game');
@@ -452,8 +456,8 @@
                         <button class="btn btn-primary w-full max-w-xs text-2xl py-4" data-mode="classic">Классика</button>
                         <button class="btn btn-primary w-full max-w-xs text-xl py-3" data-mode="hard">Хард</button>
                         <button id="other-games-btn" class="btn btn-secondary w-full max-w-xs text-xl py-3">Другие игры</button>`;
-                    menuButtonsContainer.querySelectorAll('[data-mode]').forEach(b => b.onclick = async () => {
-                        await initAudio();
+                    // MUSIC FIX: Removed initAudio from button clicks.
+                    menuButtonsContainer.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
                         startGame(b.dataset.mode);
                     });
                 }
@@ -804,9 +808,8 @@
                 document.getElementById('confirm-new-game-btn').onclick = () => { newGameConfirmModal.classList.remove('active'); modeSelectModal.classList.add('active'); };
                 document.getElementById('cancel-new-game-btn').onclick = () => newGameConfirmModal.classList.remove('active');
                 
-                modeSelectModal.querySelectorAll('[data-mode]').forEach(b => b.onclick = async () => {
+                modeSelectModal.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
                     modeSelectModal.classList.remove('active');
-                    await initAudio();
                     startGame(b.dataset.mode);
                 });
                 document.getElementById('cancel-mode-select-btn').onclick = () => modeSelectModal.classList.remove('active');
