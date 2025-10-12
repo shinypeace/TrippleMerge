@@ -13,9 +13,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-light: #F3F4F6;
+            --bg-light: #faf8ef;
             --bg-dark: #111827;
-            --card-bg-light: #FFFFFF;
+            --card-bg-light: #f9f6f2;
             --card-bg-dark: #1F2937;
             --text-light: #111827;
             --text-dark: #F9FAFB;
@@ -25,9 +25,9 @@
             --accent-hover: #2563EB;
             --continue-color: #10B981; /* Emerald-500 */
             --continue-hover: #059669; /* Emerald-600 */
-            --grid-bg-light: #D1D5DB;
+            --grid-bg-light: #bbada0;
             --grid-bg-dark: #374151;
-            --cell-bg-light: #E5E7EB;
+            --cell-bg-light: #cdc1b4;
             --cell-bg-dark: #4B5563;
         }
         
@@ -354,8 +354,6 @@
                 renderOtherGames();
                 renderMainMenuButtons();
                 showScreen('mainMenu');
-                
-                document.body.addEventListener('click', initAudio, { once: true });
             }
             
             function handleVKBridgeEvent(e) {
@@ -408,9 +406,9 @@
                 setTimeout(resizeCanvas, 300);
             }
 
-            function resumeSavedGame() {
+            async function resumeSavedGame() {
                 if (!appData.savedGame) return;
-                // BUG FIX 2: Re-apply audio and theme settings when resuming a game.
+                await initAudio();
                 applySettings();
                 loadGameState();
                 showScreen('game');
@@ -454,7 +452,10 @@
                         <button class="btn btn-primary w-full max-w-xs text-2xl py-4" data-mode="classic">Классика</button>
                         <button class="btn btn-primary w-full max-w-xs text-xl py-3" data-mode="hard">Хард</button>
                         <button id="other-games-btn" class="btn btn-secondary w-full max-w-xs text-xl py-3">Другие игры</button>`;
-                    menuButtonsContainer.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { startGame(b.dataset.mode); });
+                    menuButtonsContainer.querySelectorAll('[data-mode]').forEach(b => b.onclick = async () => {
+                        await initAudio();
+                        startGame(b.dataset.mode);
+                    });
                 }
                 document.getElementById('other-games-btn').onclick = () => { showScreen('otherGames'); };
             }
@@ -686,7 +687,6 @@
                 return [2 * base, 4 * base, 8 * base];
             }
 
-            // BUG FIX 1: Reworked the upgrade logic to prevent chain reactions.
             async function checkClassicModeUpgrade(newValue) {
                 if (!appData.savedGame || appData.savedGame.gameMode !== 'classic') return;
                 const thresholds = [256, 2048, 16384, 131072];
@@ -800,9 +800,15 @@
                 document.getElementById('stats-btn-main').onclick = () => { updateStatsUI(); document.getElementById('stats-modal').classList.add('active'); };
                 document.getElementById('rules-btn-main').onclick = () => { document.getElementById('rules-modal').classList.add('active'); };
                 document.getElementById('settings-btn-main').onclick = () => { document.getElementById('settings-modal').classList.add('active'); };
+                
                 document.getElementById('confirm-new-game-btn').onclick = () => { newGameConfirmModal.classList.remove('active'); modeSelectModal.classList.add('active'); };
                 document.getElementById('cancel-new-game-btn').onclick = () => newGameConfirmModal.classList.remove('active');
-                modeSelectModal.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { modeSelectModal.classList.remove('active'); startGame(b.dataset.mode); });
+                
+                modeSelectModal.querySelectorAll('[data-mode]').forEach(b => b.onclick = async () => {
+                    modeSelectModal.classList.remove('active');
+                    await initAudio();
+                    startGame(b.dataset.mode);
+                });
                 document.getElementById('cancel-mode-select-btn').onclick = () => modeSelectModal.classList.remove('active');
                 
                 document.getElementById('main-menu-btn-pause').onclick = () => {
@@ -1058,3 +1064,4 @@
     </script>
 </body>
 </html>
+
