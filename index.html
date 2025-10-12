@@ -355,7 +355,6 @@
                 renderMainMenuButtons();
                 showScreen('mainMenu');
                 
-                // BUG FIX 1: Add a one-time event listener to initialize audio on first user interaction.
                 document.body.addEventListener('click', initAudio, { once: true });
             }
             
@@ -366,7 +365,6 @@
                 if (type === 'VKWebAppUpdateConfig') {
                     updateGameHeight(data.safe_area_insets);
                 }
-                // BUG FIX 2: Removed obsolete 'VKWebAppShowRewardAdResult' handler.
             }
 
             function setupAudio() {
@@ -412,6 +410,8 @@
 
             function resumeSavedGame() {
                 if (!appData.savedGame) return;
+                // BUG FIX 2: Re-apply audio and theme settings when resuming a game.
+                applySettings();
                 loadGameState();
                 showScreen('game');
                 renderGrid(true);
@@ -686,6 +686,7 @@
                 return [2 * base, 4 * base, 8 * base];
             }
 
+            // BUG FIX 1: Reworked the upgrade logic to prevent chain reactions.
             async function checkClassicModeUpgrade(newValue) {
                 if (!appData.savedGame || appData.savedGame.gameMode !== 'classic') return;
                 const thresholds = [256, 2048, 16384, 131072];
@@ -694,31 +695,56 @@
 
                 appData.savedGame.classicThresholdsReached.push(triggeredThreshold);
                 const power = appData.savedGame.classicThresholdsReached.length;
-                const v1 = 2 * Math.pow(2, power - 1);
-                const v2 = 4 * Math.pow(2, power - 1);
+                
+                const v1_from = 2 * Math.pow(2, power - 1);
+                const v1_to = v1_from * 2;
+                const v2_from = 4 * Math.pow(2, power - 1);
+                const v2_to = v2_from * 2;
 
-                await upgradeTiles(v1, v1 * 2);
-                await upgradeTiles(v2, v2 * 2);
-            }
-
-            async function upgradeTiles(fromValue, toValue) {
-                const tilesToUpgrade = [];
-                for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
-                    if (grid[r][c] === fromValue) {
-                        grid[r][c] = toValue;
-                        tilesToUpgrade.push(document.getElementById(`tile-${r}-${c}`));
+                const changes = [];
+                // First, find all tiles to upgrade based on the grid's current state.
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (grid[r][c] === v1_from) {
+                            changes.push({ r, c, toValue: v1_to });
+                        } else if (grid[r][c] === v2_from) {
+                            changes.push({ r, c, toValue: v2_to });
+                        }
                     }
                 }
-                if (tilesToUpgrade.length > 0) playMergeSound(toValue);
-                tilesToUpgrade.forEach(tile => {
-                    if (!tile) return;
-                    tile.classList.add('tile-upgrade');
-                    tile.className = `tile tile-upgrade ${TILE_COLORS[toValue] || 'bg-gray-800'}`;
-                    tile.textContent = formatTileValue(toValue);
-                });
-                await new Promise(r => setTimeout(r, 400));
-                tilesToUpgrade.forEach(tile => tile?.classList.remove('tile-upgrade'));
+                
+                if (changes.length > 0) {
+                    await applyUpgrades(changes);
+                }
             }
+
+            async function applyUpgrades(changes) {
+                const tilesToAnimate = [];
+                let maxToValue = 0;
+                
+                for (const change of changes) {
+                    const { r, c, toValue } = change;
+                    grid[r][c] = toValue;
+                    const tileEl = document.getElementById(`tile-${r}-${c}`);
+                    if (tileEl) {
+                        tilesToAnimate.push({ el: tileEl, toValue });
+                    }
+                    if (toValue > maxToValue) maxToValue = toValue;
+                }
+
+                if (tilesToAnimate.length > 0) playMergeSound(maxToValue);
+
+                tilesToAnimate.forEach(({ el, toValue }) => {
+                    el.classList.add('tile-upgrade');
+                    el.className = `tile tile-upgrade ${TILE_COLORS[toValue] || 'bg-gray-800'}`;
+                    el.textContent = formatTileValue(toValue);
+                });
+
+                await new Promise(r => setTimeout(r, 400));
+                
+                tilesToAnimate.forEach(({ el }) => el?.classList.remove('tile-upgrade'));
+            }
+
 
             // --- Booster Logic ---
             async function activateBooster(mode) {
@@ -736,7 +762,6 @@
                     }
                     updateBoosterUI();
                 } else {
-                    // BUG FIX 2: Replaced deprecated ad call with modern async/await version.
                     try {
                         const adData = await vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward' });
                         if (adData.result === true) {
@@ -772,7 +797,6 @@
 
             // --- Event Handlers & Controls ---
             function addEventListeners() {
-                 // BUG FIX 1: Removed all initAudio() calls from here.
                 document.getElementById('stats-btn-main').onclick = () => { updateStatsUI(); document.getElementById('stats-modal').classList.add('active'); };
                 document.getElementById('rules-btn-main').onclick = () => { document.getElementById('rules-modal').classList.add('active'); };
                 document.getElementById('settings-btn-main').onclick = () => { document.getElementById('settings-modal').classList.add('active'); };
