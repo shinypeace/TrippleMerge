@@ -327,6 +327,7 @@
                 boosterState = { mode: null, firstTile: null };
 
             const SELECTION_SCALE = ['C4', 'D4', 'E4', 'G4', 'A4', 'C5', 'D5', 'E5'];
+let pianoSampler;
 
             let appData = {
                 theme: 'dark', musicEnabled: true, sfxVolume: 70,
@@ -377,25 +378,38 @@
             }
 
             function setupAudio() {
-                 // Sound for merging tiles - rich and melodic
-                mergeSynth = new Tone.PolySynth(Tone.FMSynth, {
-                    harmonicity: 1.2,
-                    modulationIndex: 5,
-                    envelope: { attack: 0.01, decay: 0.4, sustain: 0.1, release: 0.8 },
-                    modulationEnvelope: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 0.8 }
-                }).toDestination();
-                
-                // Sound for UI clicks
-                clickSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination();
+    // 🎹 Piano Sampler — реалистичные звуки фортепиано
+    const pianoSamples = {
+        A1: 'https://tonejs.github.io/audio/salamander/A1.mp3',
+        C2: 'https://tonejs.github.io/audio/salamander/C2.mp3',
+        F3: 'https://tonejs.github.io/audio/salamander/F3.mp3',
+        A3: 'https://tonejs.github.io/audio/salamander/A3.mp3',
+        C4: 'https://tonejs.github.io/audio/salamander/C4.mp3',
+        E4: 'https://tonejs.github.io/audio/salamander/E4.mp3',
+        G4: 'https://tonejs.github.io/audio/salamander/G4.mp3',
+        C5: 'https://tonejs.github.io/audio/salamander/C5.mp3',
+        E5: 'https://tonejs.github.io/audio/salamander/E5.mp3',
+        A5: 'https://tonejs.github.io/audio/salamander/A5.mp3',
+        C6: 'https://tonejs.github.io/audio/salamander/C6.mp3'
+    };
 
-                // Sound for selecting tiles
-                selectionSynth = new Tone.Synth({
-                    oscillator: { type: 'sine' },
-                    envelope: { attack: 0.005, decay: 0.1, sustain: 0.1, release: 0.2 }
-                }).toDestination();
-                selectionSynth.volume.value = -6;
-            }
-            
+    // Один общий семплер для всех звуков
+    pianoSampler = new Tone.Sampler({
+        urls: pianoSamples,
+        release: 1,
+        baseUrl: "https://tonejs.github.io/audio/salamander/"
+    }).toDestination();
+
+    // Немного мягче по громкости
+    pianoSampler.volume.value = -8;
+
+    // Короткий клик (для UI)
+    clickSynth = new Tone.Synth({
+        oscillator: { type: 'triangle' },
+        envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+    }).toDestination();
+}
+
             async function initAudio() {
                 if (audioContextStarted) return;
                 try {
@@ -1044,30 +1058,28 @@
 
             // --- Sounds ---
             function playSelectionSound() {
-                if (!audioContextStarted || selectedPath.length === 0) return;
-                const noteIndex = (selectedPath.length - 1) % SELECTION_SCALE.length;
-                const note = SELECTION_SCALE[noteIndex];
-                selectionSynth.triggerAttackRelease(note, "16n");
-            }
+    if (!audioContextStarted || !pianoSampler) return;
+    const noteIndex = (selectedPath.length - 1) % SELECTION_SCALE.length;
+    const note = SELECTION_SCALE[noteIndex];
+    pianoSampler.triggerAttackRelease(note, "16n", Tone.now(), 0.6);
+}
+
 
             function playMergeSound(value) {
-                if (!audioContextStarted) return;
-                const notes = ["C4", "E4", "G4", "A4", "C5", "E5", "G5", "A5", "C6", "E6", "G6"];
-                const step = Math.floor(Math.log2(value)) - 1; // For 2, step=0; for 4, step=1 etc.
-                const note = notes[Math.min(step, notes.length - 1)];
+    if (!audioContextStarted || !pianoSampler) return;
 
-                const chord = [
-                    note,
-                    Tone.Frequency(note).transpose(4).toFrequency(), // Major third
-                    Tone.Frequency(note).transpose(7).toFrequency()  // Perfect fifth
-                ];
-                
-                // Dynamically adjust volume: louder for smaller merges, slightly softer for big ones
-                const volume = -12 + Math.min(step, 5) * 1.5; // Starts at -12dB, goes up to -4.5dB
-                mergeSynth.volume.value = volume;
-                
-                mergeSynth.triggerAttackRelease(chord, "8n");
-            }
+    // Определяем ноту в зависимости от величины слияния
+    const notes = ["C3", "E3", "G3", "C4", "E4", "G4", "C5", "E5", "G5", "C6"];
+    const step = Math.floor(Math.log2(value)) - 1;
+    const note = notes[Math.min(step, notes.length - 1)];
+
+    // Играем аккорд с приятным пиано-звучанием
+    const chord = [note, Tone.Frequency(note).transpose(4).toFrequency(), Tone.Frequency(note).transpose(7).toFrequency()];
+    chord.forEach((n, i) => {
+        pianoSampler.triggerAttackRelease(n, "8n", Tone.now() + i * 0.02, 0.8 - i * 0.1);
+    });
+}
+
             
             function playClickSound() { if(!audioContextStarted)return;clickSynth.triggerAttackRelease("C5","16n"); }
 
