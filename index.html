@@ -377,11 +377,12 @@
             }
 
             function setupAudio() {
-                // Sound for merging tiles - soft and pleasant
-                mergeSynth = new Tone.PolySynth(Tone.Synth, {
-                    oscillator: { type: 'sine' },
-                    envelope: { attack: 0.01, decay: 0.4, sustain: 0.2, release: 0.5 },
-                    volume: -8
+                 // Sound for merging tiles - rich and melodic
+                mergeSynth = new Tone.PolySynth(Tone.FMSynth, {
+                    harmonicity: 1.2,
+                    modulationIndex: 5,
+                    envelope: { attack: 0.01, decay: 0.4, sustain: 0.1, release: 0.8 },
+                    modulationEnvelope: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 0.8 }
                 }).toDestination();
                 
                 // Sound for UI clicks
@@ -441,7 +442,6 @@
 
             function resumeSavedGame() {
                 if (!appData.savedGame) return;
-                applySettings();
                 loadGameState();
                 showScreen('game');
                 renderGrid(true);
@@ -1052,11 +1052,21 @@
 
             function playMergeSound(value) {
                 if (!audioContextStarted) return;
-                const rootNote = 220; // A3
-                const octave = Math.floor(Math.log2(value / 128));
-                const note = rootNote * Math.pow(2, octave);
-                const chord = [note, note * 1.25, note * 1.5]; // Major chord: root, major third, fifth
-                mergeSynth.triggerAttackRelease(chord, "4n");
+                const notes = ["C4", "E4", "G4", "A4", "C5", "E5", "G5", "A5", "C6", "E6", "G6"];
+                const step = Math.floor(Math.log2(value)) - 1; // For 2, step=0; for 4, step=1 etc.
+                const note = notes[Math.min(step, notes.length - 1)];
+
+                const chord = [
+                    note,
+                    Tone.Frequency(note).transpose(4).toFrequency(), // Major third
+                    Tone.Frequency(note).transpose(7).toFrequency()  // Perfect fifth
+                ];
+                
+                // Dynamically adjust volume: louder for smaller merges, slightly softer for big ones
+                const volume = -12 + Math.min(step, 5) * 1.5; // Starts at -12dB, goes up to -4.5dB
+                mergeSynth.volume.value = volume;
+                
+                mergeSynth.triggerAttackRelease(chord, "8n");
             }
             
             function playClickSound() { if(!audioContextStarted)return;clickSynth.triggerAttackRelease("C5","16n"); }
