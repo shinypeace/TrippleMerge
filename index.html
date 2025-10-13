@@ -374,8 +374,19 @@
             }
 
             function setupAudio() {
-                mergeSynth = new Tone.PolySynth(Tone.AMSynth, { harmonicity: 1.5, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 }, modulationEnvelope: { attack: 0.05, decay: 0.2, sustain: 0.1, release: 0.2 } }).toDestination();
+                // Sound for merging tiles - more melodic
+                mergeSynth = new Tone.PolySynth(Tone.FMSynth, {
+                    harmonicity: 0.5,
+                    modulationIndex: 3,
+                    envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.4 },
+                    modulationEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.4 }
+                }).toDestination();
+                mergeSynth.volume.value = -3;
+                
+                // Sound for UI clicks
                 clickSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination();
+
+                // Sound for selecting tiles
                 selectionSynth = new Tone.Synth({
                     oscillator: { type: 'sine' },
                     envelope: { attack: 0.005, decay: 0.1, sustain: 0.1, release: 0.2 }
@@ -911,6 +922,7 @@
                     if (cell.r === secondLast.r && cell.c === secondLast.c) {
                         const removed = selectedPath.pop();
                         document.getElementById(`tile-${removed.r}-${removed.c}`)?.classList.remove('selected');
+                        playSelectionSound(); // Play sound on deselection
                         drawLinePath();
                         updateNextTilePreview();
                         return;
@@ -1023,12 +1035,19 @@
 
             // --- Sounds ---
             function playSelectionSound() {
-                if (!audioContextStarted) return;
+                if (!audioContextStarted || selectedPath.length === 0) return;
                 const noteIndex = (selectedPath.length - 1) % SELECTION_SCALE.length;
                 const note = SELECTION_SCALE[noteIndex];
                 selectionSynth.triggerAttackRelease(note, "16n");
             }
-            function playMergeSound(value) { if(!audioContextStarted)return;const n=110,t=n*Math.pow(2,Math.log2(value/2)/12+1);mergeSynth.triggerAttackRelease(t,"8n"); }
+
+            function playMergeSound(value) {
+                if (!audioContextStarted) return;
+                const note = 220 * Math.pow(2, Math.log2(value / 256) / 12); // Base note increases with tile value
+                const chord = [note, note * 1.5, note * 2]; // Root, fifth, octave
+                mergeSynth.triggerAttackRelease(chord, "8n");
+            }
+            
             function playClickSound() { if(!audioContextStarted)return;clickSynth.triggerAttackRelease("C5","16n"); }
 
             // --- Settings & Persistence ---
