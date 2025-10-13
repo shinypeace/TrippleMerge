@@ -58,6 +58,10 @@
             /* Prevent page scrolling */
             overflow: hidden;
             overscroll-behavior: none;
+            /* Disable text selection */
+            user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
         }
 
         .game-container {
@@ -319,8 +323,10 @@
             let grid = [], currentScore = 0, isPaused = false, isGameOver = false,
                 isMoving = false, isSelecting = false, selectedPath = [],
                 currentSelectionValue = 0, vkUserId = null, wasMusicPlaying = false,
-                audioContextStarted = false, mergeSynth, clickSynth,
+                audioContextStarted = false, mergeSynth, clickSynth, selectionSynth,
                 boosterState = { mode: null, firstTile: null };
+
+            const SELECTION_SCALE = ['C4', 'D4', 'E4', 'G4', 'A4', 'C5', 'D5', 'E5'];
 
             let appData = {
                 theme: 'dark', musicEnabled: true, sfxVolume: 70,
@@ -355,7 +361,6 @@
                 renderMainMenuButtons();
                 showScreen('mainMenu');
                 
-                // MUSIC FIX: Listen for the first interaction anywhere to start the audio context.
                 document.body.addEventListener('click', initAudio, { once: true });
             }
             
@@ -371,6 +376,11 @@
             function setupAudio() {
                 mergeSynth = new Tone.PolySynth(Tone.AMSynth, { harmonicity: 1.5, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 }, modulationEnvelope: { attack: 0.05, decay: 0.2, sustain: 0.1, release: 0.2 } }).toDestination();
                 clickSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination();
+                selectionSynth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0.1, release: 0.2 }
+                }).toDestination();
+                selectionSynth.volume.value = -6;
             }
             
             async function initAudio() {
@@ -378,7 +388,6 @@
                 try {
                     await Tone.start(); 
                     audioContextStarted = true;
-                    // Once context is started, re-apply settings to play music if it was enabled.
                     applySettings();
                 } catch(e) {}
             }
@@ -412,7 +421,6 @@
 
             function resumeSavedGame() {
                 if (!appData.savedGame) return;
-                // MUSIC FIX: No need to call initAudio here anymore.
                 applySettings();
                 loadGameState();
                 showScreen('game');
@@ -456,7 +464,6 @@
                         <button class="btn btn-primary w-full max-w-xs text-2xl py-4" data-mode="classic">Классика</button>
                         <button class="btn btn-primary w-full max-w-xs text-xl py-3" data-mode="hard">Хард</button>
                         <button id="other-games-btn" class="btn btn-secondary w-full max-w-xs text-xl py-3">Другие игры</button>`;
-                    // MUSIC FIX: Removed initAudio from button clicks.
                     menuButtonsContainer.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
                         startGame(b.dataset.mode);
                     });
@@ -801,6 +808,7 @@
 
             // --- Event Handlers & Controls ---
             function addEventListeners() {
+                window.addEventListener('contextmenu', e => e.preventDefault());
                 document.getElementById('stats-btn-main').onclick = () => { updateStatsUI(); document.getElementById('stats-modal').classList.add('active'); };
                 document.getElementById('rules-btn-main').onclick = () => { document.getElementById('rules-modal').classList.add('active'); };
                 document.getElementById('settings-btn-main').onclick = () => { document.getElementById('settings-modal').classList.add('active'); };
@@ -884,6 +892,7 @@
                     currentSelectionValue = grid[cell.r][cell.c];
                     selectedPath.push(cell);
                     document.getElementById(`tile-${cell.r}-${cell.c}`).classList.add('selected');
+                    playSelectionSound();
                     drawLinePath();
                     updateNextTilePreview();
                 }
@@ -914,6 +923,7 @@
                 if (!alreadySelected && isAdjacent && grid[cell.r][cell.c] === currentSelectionValue) {
                     selectedPath.push(cell);
                     document.getElementById(`tile-${cell.r}-${cell.c}`).classList.add('selected');
+                    playSelectionSound();
                     drawLinePath();
                     updateNextTilePreview();
                 }
@@ -1012,6 +1022,12 @@
             }
 
             // --- Sounds ---
+            function playSelectionSound() {
+                if (!audioContextStarted) return;
+                const noteIndex = (selectedPath.length - 1) % SELECTION_SCALE.length;
+                const note = SELECTION_SCALE[noteIndex];
+                selectionSynth.triggerAttackRelease(note, "16n");
+            }
             function playMergeSound(value) { if(!audioContextStarted)return;const n=110,t=n*Math.pow(2,Math.log2(value/2)/12+1);mergeSynth.triggerAttackRelease(t,"8n"); }
             function playClickSound() { if(!audioContextStarted)return;clickSynth.triggerAttackRelease("C5","16n"); }
 
