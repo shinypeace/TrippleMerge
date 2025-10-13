@@ -360,28 +360,29 @@
                 renderOtherGames();
                 renderMainMenuButtons();
                 showScreen('mainMenu');
-                
-                document.body.addEventListener('click', initAudio, { once: true });
             }
             
             function handleVKBridgeEvent(e) {
                 const { type, data } = e.detail;
-                if (type === 'VKWebAppViewHide' && !bgMusic.paused) { wasMusicPlaying = true; bgMusic.pause(); }
-                if (type === 'VKWebAppViewRestore' && wasMusicPlaying && appData.musicEnabled) { bgMusic.play().catch(()=>{}); }
-                if (type === 'VKWebAppUpdateConfig') {
-                    updateGameHeight(data.safe_area_insets);
+                if (type === 'VKWebAppViewRestore' || type === 'VKWebAppUpdateConfig') {
+                    initAudio(); // Try to start audio when the app becomes visible
+                }
+                if (type === 'VKWebAppViewHide' && !bgMusic.paused) { 
+                    wasMusicPlaying = true; 
+                    bgMusic.pause(); 
+                }
+                if (type === 'VKWebAppViewRestore' && wasMusicPlaying && appData.musicEnabled) {
+                     bgMusic.play().catch(()=>{}); 
                 }
             }
 
             function setupAudio() {
-                // Sound for merging tiles - more melodic
-                mergeSynth = new Tone.PolySynth(Tone.FMSynth, {
-                    harmonicity: 0.5,
-                    modulationIndex: 3,
-                    envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.4 },
-                    modulationEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.4 }
+                // Sound for merging tiles - soft and pleasant
+                mergeSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.01, decay: 0.4, sustain: 0.2, release: 0.5 },
+                    volume: -8
                 }).toDestination();
-                mergeSynth.volume.value = -3;
                 
                 // Sound for UI clicks
                 clickSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination();
@@ -400,7 +401,15 @@
                     await Tone.start(); 
                     audioContextStarted = true;
                     applySettings();
-                } catch(e) {}
+                } catch(e) {
+                    // Fallback for browsers that still require a click
+                     document.body.addEventListener('click', async () => {
+                        if (audioContextStarted) return;
+                        await Tone.start();
+                        audioContextStarted = true;
+                        applySettings();
+                    }, { once: true });
+                }
             }
 
             function startGame(mode) {
@@ -1043,9 +1052,11 @@
 
             function playMergeSound(value) {
                 if (!audioContextStarted) return;
-                const note = 220 * Math.pow(2, Math.log2(value / 256) / 12); // Base note increases with tile value
-                const chord = [note, note * 1.5, note * 2]; // Root, fifth, octave
-                mergeSynth.triggerAttackRelease(chord, "8n");
+                const rootNote = 220; // A3
+                const octave = Math.floor(Math.log2(value / 128));
+                const note = rootNote * Math.pow(2, octave);
+                const chord = [note, note * 1.25, note * 1.5]; // Major chord: root, major third, fifth
+                mergeSynth.triggerAttackRelease(chord, "4n");
             }
             
             function playClickSound() { if(!audioContextStarted)return;clickSynth.triggerAttackRelease("C5","16n"); }
